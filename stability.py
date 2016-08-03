@@ -119,11 +119,12 @@ if __name__ == '__main__':
             varmc = var.replace("data","MC")
             if 'MC' not in varmc:
                 print "[WARNING] MC counterpart not found for ", var
-                mcvalue = -999
-                mcerror = -999
+                mcvalues = []
+                mcerrors = []
             else:
-                mcvalue = d[varmc][0]
-                mcerror = d[varmc+'_err'][0]
+                print "plotting data "+var+" with mc "+varmc+" and errs "+varmc+"_err"
+                mcvalues = d[varmc]
+                mcerrors = d[varmc+'_err']
 
 
             if opt.xVar == '':
@@ -134,16 +135,16 @@ if __name__ == '__main__':
                 for timevar in timevars:
                     for evenX in evenXs:
                         pt.plot_stability( xData = d[timevar], datavalues = d[var],
-                                           dataerrors = d[var+'_err'], mcvalue = mcvalue,
-                                           mcerror = mcerror, label = pt.var_labels[var],
+                                           dataerrors = d[var+'_err'], mcvalues = mcvalues,
+                                           mcerrors = mcerrors, label = pt.var_labels[var],
                                            category = region, path=plot_path, evenX = evenX,
                                            xVar=opt.xVar)
             else:
                 xvars = [opt.xVar+'_min',opt.xVar+'_max']
                 for xvar in xvars:
                     pt.plot_stability( xData = d[xvar], datavalues = d[var],
-                                       dataerrors = d[var+'_err'], mcvalue = mcvalue,
-                                       mcerror = mcerror, label = pt.var_labels[var],
+                                       dataerrors = d[var+'_err'], mcvalues = mcvalues,
+                                       mcerrors = mcerrors, label = pt.var_labels[var],
                                        category = region, path=plot_path, evenX = False,
                                        xVar=opt.xVar)
 

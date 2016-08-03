@@ -112,13 +112,13 @@ def parse_table_over_regions(path = "", tableFile = "",category="",xVar=""):
         if category == 'inclusive':
             if not any(c in line.split('&')[0] for c in cats):
                 lines.append(line)
-                varmins.append(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[0])
-                varmaxes.append(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[1])
+                varmins.append(float(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[0]))
+                varmaxes.append(float(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[1]))
         else:
             if category in line.split('&')[0]:
                 lines.append(line)
-                varmins.append(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[0])
-                varmaxes.append(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[1])
+                varmins.append(float(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[0]))
+                varmaxes.append(float(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[1]))
 
     #If there's nothing for this category, return an empty dataframe
     if len(lines) == 0: return pd.DataFrame()
@@ -224,7 +224,7 @@ def append_variables(path='',file='',data=None,category=''):
     return data_
 
 
-def plot_stability( xData = None, datavalues = None, mcvalue = None, dataerrors = None, mcerror = None, label = '', category = '', path = "", evenX = False, xVar = ''):
+def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors = None, mcerrors = None, label = '', category = '', path = "", evenX = False, xVar = ''):
 
     left, width = 0.1, 1.0
     bottom, height = 0.1, 0.5
@@ -306,15 +306,24 @@ def plot_stability( xData = None, datavalues = None, mcvalue = None, dataerrors 
     ax_hist.annotate('Std dev. = {:3.3f}'.format(np.std(npVals)),(hmax/6,ymin-(ymax-ymin)*0.175),fontsize=11,annotation_clip=False,xycoords='data')
     
     #Add line for the MC 
-    if (mcvalue > -999):
+    if (len(mcvalues) > 0):
         xmin,xmax = 0,1
-        ax_plot.axhline(y=mcvalue+mcerror,
-                        xmin=xmin,xmax=xmax,c='red',linewidth=1,clip_on=True,linestyle='dashed')
-        ax_plot.axhline(y=mcvalue-mcerror,
-                        xmin=xmin,xmax=xmax,c='red',linewidth=1,clip_on=True,linestyle='dashed')
-        ax_plot.axhline(y=mcvalue,
-                        xmin=xmin,xmax=xmax,c='blue',linewidth=1,clip_on=True,linestyle='solid',label='MC')
-        ax_hist.annotate('MC = {:3.3f} $\pm$ {:3.3f}'.format(mcvalue,mcerror),(hmax/6,ymin-(ymax-ymin)*0.25),fontsize=11,annotation_clip=False,xycoords='data')
+        ax_plot.errorbar(xData,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=5,ls='None',c='Red')
+
+        xNP = np.asarray(xData.tolist())
+        mcNP = np.asarray(mcvalues.tolist())
+        mcErrNP = np.asarray(mcerrors.tolist())
+
+        ax_plot.fill_between(xNP,mcNP-mcErrNP,mcNP+mcErrNP,alpha=0.3,edgecolor='red', facecolor='red')
+
+
+#        ax_plot.axhline(y=mcvalue+mcerror,
+#                        xmin=xmin,xmax=xmax,c='red',linewidth=1,clip_on=True,linestyle='dashed')
+#        ax_plot.axhline(y=mcvalue-mcerror,
+#                        xmin=xmin,xmax=xmax,c='red',linewidth=1,clip_on=True,linestyle='dashed')
+#        ax_plot.axhline(y=mcvalue,
+#                        xmin=xmin,xmax=xmax,c='blue',linewidth=1,clip_on=True,linestyle='solid',label='MC')
+#        ax_hist.annotate('MC = {:3.3f} $\pm$ {:3.3f}'.format(mcvalue,mcerror),(hmax/6,ymin-(ymax-ymin)*0.25),fontsize=11,annotation_clip=False,xycoords='data')
     
     #Legend
     # legend = ax_plot.legend(loc='lower center',numpoints=1)
