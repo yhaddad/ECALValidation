@@ -44,6 +44,8 @@ if __name__ == '__main__':
     print "Run range file to be used is "   ,opt.inRunRange
     print "Stability file to be used is "   ,opt.inStability
     print "Invariant mass that was used is ",opt.invMass
+
+    overRegions = opt.inRunRange == ''
     
     if not os.path.exists('plot-stability/'):
         os.makedirs('plot-stability/')
@@ -57,17 +59,29 @@ if __name__ == '__main__':
     data_path = 'data-stability/'
     plot_path = 'plot-stability/' + runRangeFile.replace('.dat','') + '/' + opt.invMass + '/'
     
-    copyfile(opt.inRunRange , data_path +'/'+ runRangeFile)
-    copyfile(opt.inStability, data_path +'/'+ stabilityFile)
-    print "They can now be found in data/ as " + runRangeFile + " and " + stabilityFile 
+    if opt.inRunRange != data_path + runRangeFile:
+        copyfile(opt.inRunRange , data_path +'/'+ runRangeFile)
+    if opt.inStability != data_path + stabilityFile:
+        copyfile(opt.inStability, data_path +'/'+ stabilityFile)
+
+    print "They can be found in data/ as " + runRangeFile + " and " + stabilityFile
     
     if not os.path.exists(plot_path):
         os.makedirs(plot_path)
 
     print "Starting plotmaking..."
     print "categories :: "
-    pprint( pt.ecal_regions ) 
-    for category in pt.ecal_regions:
+
+    regions = pt.read_regions_from_table(path=data_path,tableFile=stabilityFile)
+    print "Regions are:"
+    for region in regions: print region
+
+    if overRegions:
+        print "Plots are over regions"
+    else:
+        print "Plots are over run ranges"
+
+    for category in regions:
         print "Beginning category ", category,
         if "gold" in category: 
             print " ...skipping: gold"
@@ -79,6 +93,7 @@ if __name__ == '__main__':
 
         #Get runrange and time info from the the runranges file
         d = pt.read_run_range(path=data_path,file=runRangeFile)
+
         #Get variables information from the stability monitoring .tex file
         d = pt.append_variables(path=data_path,file=stabilityFile,data=d,category=category)
 

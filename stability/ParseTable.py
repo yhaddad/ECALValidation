@@ -10,19 +10,6 @@ import datetime
 import re
 from math import sqrt
 
-ecal_regions = [
-    "EB",
-    "EB-gold",
-    "EB-bad",
-    "EB-absEta_0_1",
-    "EB-absEta_1_1.4442",
-    "EE",
-    "EE-gold",
-    "EE-bad",
-    "EE-absEta_1.566_2",
-    "EE-absEta_2_2.5"
-]
-
 region_labels = {
     "EB"      : "EB",
     "EB-gold" : "EB $R_{9} > 0.94$",
@@ -48,6 +35,34 @@ var_labels = {
 } 
 
 format_fig_output = ['pdf','png']
+
+def read_regions_from_table(path = "",tableFile= ""):
+
+    regions = []
+    with open(path+'/'+tableFile) as f:
+        for line in f.read().split('\n'):
+            if line == '': continue
+            if line[0] == '#': continue
+            if 'category' in line: continue
+            
+            region = line.split('&')[0]
+            if region.split('-runNumber')[0] not in regions:
+                regions.append(region.split('-runNumber')[0])
+
+    return regions
+
+
+def read_regions_from_regionsfile(path = "",regionsFile=""):
+
+    assert regionsFile != "", "The regions file must be specified"
+
+    regions = []
+    with open(path+regionsFile) as f:
+        for line in f.read().split('\n'):
+            if line != '' and line[0] != '#':
+                regions.append(line.split()[0])
+
+    return regions
 
 def read_run_range(path = "", file = ""):
 
@@ -78,7 +93,6 @@ def read_run_range(path = "", file = ""):
     data_['time'] = pd.to_datetime(data_['date_max'], format='%Y-%m-%d')
 
     return data_
-
 
 def append_variables(path='',file='',data=None,category=''):
 
