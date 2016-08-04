@@ -122,7 +122,6 @@ if __name__ == '__main__':
                 mcvalues = []
                 mcerrors = []
             else:
-                print "plotting data "+var+" with mc "+varmc+" and errs "+varmc+"_err"
                 mcvalues = d[varmc]
                 mcerrors = d[varmc+'_err']
 

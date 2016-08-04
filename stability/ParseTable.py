@@ -242,9 +242,9 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
 
     xPlaceholder = range(1,1+len(xData),1)
     if evenX:
-        ax_plot.errorbar(xPlaceholder,datavalues,yerr=dataerrors,capthick=0,marker='o',ms=5,ls='None',)
+        ax_plot.errorbar(xPlaceholder,datavalues,yerr=dataerrors,capthick=0,marker='o',ms=4,ls='None',)
     else:
-        ax_plot.errorbar(xData,datavalues,yerr=dataerrors,capthick=0,marker='o',ms=5,ls='None',)
+        ax_plot.errorbar(xData,datavalues,yerr=dataerrors,capthick=0,marker='o',ms=4,ls='None',)
 
     # customise the axes
     xDataVar = xData.name
@@ -286,8 +286,14 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
     ax_hist.xaxis.set_ticks([])
 
     #Get and set the limits for the histogram
-    ymin = round(datavalues.min()) - 1
-    ymax = round(datavalues.max()) + 1
+
+    if (len(mcvalues) > 0):
+        ymin = round(min(datavalues.min(),mcvalues.min())) - 1
+        ymax = round(max(datavalues.max(),mcvalues.max())) + 1
+    else:
+        ymin = round(datavalues.min()) - 1
+        ymax = round(datavalues.max()) + 1
+
     ax_plot.set_ylim((ymin,ymax))
     ax_hist.set_ylim((ymin,ymax))
 
@@ -308,9 +314,9 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
     #Add line for the MC 
     if (len(mcvalues) > 0):
         if evenX:
-            ax_plot.errorbar(xPlaceholder,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=5,ls='None',c='Red')
+            ax_plot.errorbar(xPlaceholder,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=4,ls='None',c='Red')
         else:
-            ax_plot.errorbar(xData,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=5,ls='None',c='Red')
+            ax_plot.errorbar(xData,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=4,ls='None',c='Red')
 
         if evenX:
             xNP = np.asarray(xPlaceholder)
