@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import re
-import sys, getopt
+import sys, getopt, time
 from monitoring  import ParseTable as pt
 from shutil      import copyfile
 from optparse    import OptionParser
@@ -10,26 +10,28 @@ from pprint      import pprint
 
 def get_options():
     parser = OptionParser()
-    parser.add_option("-r", "--run-range",
-                      dest="inRunRange", default='',
+    parser.add_option("-t", "--table",
+                      dest="intable", default='stability.tex',
                       help="""
-                      Input configuration file that contains the run ranges.
-                      This file is produced by the Zfitter (please check the documentation)
-                      and can be found in data/runRange/ directory
+                      table containing the scan results from ZFitter
                       """,
                       metavar="FILE")
 
-    parser.add_option("-s", "--stability",
-                      dest="inStability", default='stability.tex',
+    parser.add_option("-v", "--variable",
+                      dest="variable", default='absEta',
                       help="""
-                      stability tex file produced by the ZFitter
-                      """,
-                      metavar="FILE")
-
-    parser.add_option("-i", "--inv-mass",
-                      dest="invMass", default='invMassSC',
+                      Variable scanned by ZFitter
+                      """)
+    parser.add_option("-l", "--variable-title",
+                      dest="vtitle", default='|\eta|',
                       help="""
-                      Invariant mass variable.
+                      Latex type title. to be intruduced without '$ $'
+                      example : -l |\eta|
+                      """)
+    parser.add_option("-d", "--make-date-dir",
+                      action="store_true",dest="make-date-dir",default=True,
+                      help="""
+                      Store the results and the tables in a dated directories
                       """)
 
     return parser.parse_args()
@@ -37,35 +39,27 @@ def get_options():
 
 if __name__ == '__main__':
     (opt, args) =  get_options()
-    assert opt.inStability != '', 'No stability file input given, use -s <stability.tex>'
-    assert opt.inRunRange  != '', 'No run range file input given, use -r <runRange.dat>'
-    assert opt.invMass     != '', 'No invariant mass name specified, use -i <invariant mass>'
+    assert opt.intable   != '', 'No scan table given , please use -t <scan_table.tex>'
+    assert opt.variable  != '', 'No variable specified , please use -v <variable>'
 
-    print "Run range file to be used is "    ,opt.inRunRange
-    print "Stability file to be used is "    ,opt.inStability
-    print "Invariant mass that was used is " ,opt.invMass
+    print "-- Scan table       : " ,opt.intable
+    print "-- Scanned variable : " ,opt.variable
+    print "-- Variable title   : " ,opt.vtitle
 
-    overRegions = opt.inRunRange == ''
-
-    if not os.path.exists('plot-stability/'):
-        os.makedirs('plot-stability/')
-    if not os.path.exists('data-stability/'):
-        os.makedirs('data-stability/')
+    outdirname = 'plot-scan/' + time.strftime("%d-%m-%Y") + '/'
+    # if not os.path.exists(outdirname):
+        # os.makedirs(outdirname)
 
     #Rename and copy the datafiles into data/
-    runRangeFile  = opt.inRunRange.split('/')[-1]
-    stabilityFile = opt.inRunRange.split('/')[-1].replace('.dat','')+'_'+opt.invMass+'_stability.tex'
-
-    data_path = 'data-stability/'
-    plot_path = 'plot-stability/' + runRangeFile.replace('.dat','') + '/' + opt.invMass + '/'
-
-    if opt.inRunRange != data_path + runRangeFile:
-        copyfile(opt.inRunRange , data_path +'/'+ runRangeFile)
+    data_path  = opt.intable.split('/')[-1]
+    intable    = opt.intable.split('/')[-1]
+    if opt.intable  != outdirname + intable:
+        copyfile(opt.intable , intable +'/'+ intable)
     if opt.inStability != data_path + stabilityFile:
         copyfile(opt.inStability, data_path +'/'+ stabilityFile)
 
     print "They can be found in data/ as " + runRangeFile + " and " + stabilityFile
-
+    """
     if not os.path.exists(plot_path):
         os.makedirs(plot_path)
 
@@ -136,3 +130,4 @@ if __name__ == '__main__':
                                        dataerrors = d[var+'_err'], mcvalue = mcvalue,
                                        mcerror = mcerror, label = pt.var_labels[var],
                                        category = category, path=plot_path, evenX = evenX )
+    """

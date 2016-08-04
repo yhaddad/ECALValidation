@@ -11,31 +11,33 @@ import re
 from math import sqrt
 
 region_labels = {
-    "EB"      : "EB",
-    "EB-gold" : "EB $R_{9} > 0.94$",
-    "EB-bad"  : "EB $R_{9} < 0.94$",
-    "EB-absEta_0_1" : "EB $\mid\eta\mid < 1$",
+    "EB"                 : "EB",
+    "EB-gold"            : "EB $R_{9} > 0.94$",
+    "EB-bad"             : "EB $R_{9} < 0.94$",
+    "EB-absEta_0_1"      : "EB $\mid\eta\mid < 1$",
     "EB-absEta_1_1.4442" : "EB $1 < \mid\eta\mid < 1.4442$",
-    "EE"      : "EE",
-    "EE-gold" : "EE $R_{9} > 0.94$",
-    "EE-bad" : "EE $R_{9} < 0.94$",
-    "EE-absEta_1.566_2" : "EE $1.566 < \mid\eta\mid < 2$",
-    "EE-absEta_2_2.5" : "EE $2 < \mid\eta\mid < 2.5$"
+    "EE"                 : "EE",
+    "EE-gold"            : "EE $R_{9} > 0.94$",
+    "EE-bad"             : "EE $R_{9} < 0.94$",
+    "EE-absEta_1.566_2"  : "EE $1.566 < \mid\eta\mid < 2$",
+    "EE-absEta_2_2.5"    : "EE $2 < \mid\eta\mid < 2.5$",
+
+    "gold" :  "$R_{9} > 0.94$",
+    "bad"  :  "$R_{9} < 0.94$"
 }
 
-var_labels = {  
-    "DeltaM_data" : "$\Delta m$",
-    "DeltaP"      : "$\Delta p$",
-    "width_data"  : "$\sigma_{CB}$",
+var_labels = {
+    "DeltaM_data"        : "$\Delta m$",
+    "DeltaP"             : "$\Delta p$",
+    "width_data"         : "$\sigma_{CB}$",
     "rescaledWidth_data" : "$\sigma_{CB}$ (Rescaled)",
     "additionalSmearing" : "Additional Smearing",
     "chi2data"           : "$\chi^{2}$",
     "events_lumi"        : "events/lumi",
     "sigmaeff_data"      : "$\sigma_{eff}$"
-} 
+}
 
 format_fig_output = ['pdf','png']
-
 def read_regions_from_table(path = "",tableFile= ""):
 
     regions = []
@@ -44,7 +46,7 @@ def read_regions_from_table(path = "",tableFile= ""):
             if line == '': continue
             if line[0] == '#': continue
             if 'category' in line: continue
-            
+
             region = line.split('&')[0]
             if region.split('-runNumber')[0] not in regions:
                 regions.append(region.split('-runNumber')[0])
@@ -104,12 +106,12 @@ def append_variables(path='',file='',data=None,category=''):
 
     #Parse top line for variables
     variables = text.split("\n")[0].split(' & ')
-    
+
     for i in range(2,len(variables),1):
         values = []
         errors = []
         for line in text.split('\n'):
-            
+
             if line.split('-runNumber')[0] == category:
 
                 value = line.split(' & ')[i]
@@ -127,7 +129,7 @@ def append_variables(path='',file='',data=None,category=''):
             variables[i] = variables[i].replace("mc","MC")
         if '/' in variables[i]:
             variables[i] = variables[i].replace("/","_")
-            
+
         data_[variables[i]] = values
         data_[variables[i]+'_err'] = errors
 
@@ -214,8 +216,8 @@ def plot_stability( time = None, datavalues = None, mcvalue = None, dataerrors =
     npVals = np.asarray(datavalues)
     ax_hist.annotate('Mean = {:3.3f}'.format(np.mean(npVals)),(hmax/6,ymin-(ymax-ymin)*0.1),fontsize=11,annotation_clip=False,xycoords='data')
     ax_hist.annotate('Std dev. = {:3.3f}'.format(np.std(npVals)),(hmax/6,ymin-(ymax-ymin)*0.175),fontsize=11,annotation_clip=False,xycoords='data')
-    
-    #Add line for the MC 
+
+    #Add line for the MC
     if (mcvalue > -999):
         xmin,xmax = 0,1
         ax_plot.axhline(y=mcvalue+mcerror,
@@ -225,18 +227,18 @@ def plot_stability( time = None, datavalues = None, mcvalue = None, dataerrors =
         ax_plot.axhline(y=mcvalue,
                         xmin=xmin,xmax=xmax,c='blue',linewidth=1,clip_on=True,linestyle='solid',label='MC')
         ax_hist.annotate('MC = {:3.3f} $\pm$ {:3.3f}'.format(mcvalue,mcerror),(hmax/6,ymin-(ymax-ymin)*0.25),fontsize=11,annotation_clip=False,xycoords='data')
-    
+
     #Legend
     # legend = ax_plot.legend(loc='lower center',numpoints=1)
     # if (mcvalue > -999):
     #     legend.get_texts()[1].set_text('Data')
     # else:
     #     legend.get_texts()[0].set_text('Data')
-    
+
     #Save
     if evenX:
         timevar = timevar + '_even'
-        
+
     if not os.path.exists(path+'/'+timevar):
         os.makedirs(path+'/'+timevar)
 
@@ -251,11 +253,3 @@ def plot_stability( time = None, datavalues = None, mcvalue = None, dataerrors =
                      bbox_inches='tight')
 
     plt.close(fig)
-
-
-
-
-
-
-
-
