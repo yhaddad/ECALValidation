@@ -307,30 +307,31 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
     
     #Add line for the MC 
     if (len(mcvalues) > 0):
-        xmin,xmax = 0,1
-        ax_plot.errorbar(xData,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=5,ls='None',c='Red')
+        if evenX:
+            ax_plot.errorbar(xPlaceholder,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=5,ls='None',c='Red')
+        else:
+            ax_plot.errorbar(xData,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=5,ls='None',c='Red')
 
-        xNP = np.asarray(xData.tolist())
+        if evenX:
+            xNP = np.asarray(xPlaceholder)
+        else:
+            xNP = np.asarray(xData.tolist())
+
         mcNP = np.asarray(mcvalues.tolist())
         mcErrNP = np.asarray(mcerrors.tolist())
 
         ax_plot.fill_between(xNP,mcNP-mcErrNP,mcNP+mcErrNP,alpha=0.3,edgecolor='red', facecolor='red')
 
-
-#        ax_plot.axhline(y=mcvalue+mcerror,
-#                        xmin=xmin,xmax=xmax,c='red',linewidth=1,clip_on=True,linestyle='dashed')
-#        ax_plot.axhline(y=mcvalue-mcerror,
-#                        xmin=xmin,xmax=xmax,c='red',linewidth=1,clip_on=True,linestyle='dashed')
-#        ax_plot.axhline(y=mcvalue,
-#                        xmin=xmin,xmax=xmax,c='blue',linewidth=1,clip_on=True,linestyle='solid',label='MC')
-#        ax_hist.annotate('MC = {:3.3f} $\pm$ {:3.3f}'.format(mcvalue,mcerror),(hmax/6,ymin-(ymax-ymin)*0.25),fontsize=11,annotation_clip=False,xycoords='data')
-    
+        if xVar == '':
+            ax_hist.annotate('MC = {:3.3f} $\pm$ {:3.3f}'.format(mcvalues[1],mcerrors[1]),(hmax/6,ymin-(ymax-ymin)*0.25),fontsize=11,annotation_clip=False,xycoords='data')
+        
     #Legend
-    # legend = ax_plot.legend(loc='lower center',numpoints=1)
-    # if (mcvalue > -999):
-    #     legend.get_texts()[1].set_text('Data')
-    # else:
-    #     legend.get_texts()[0].set_text('Data')
+    legend = ax_plot.legend(loc='lower center',numpoints=1)
+    if (len(mcvalues) > 0):
+        legend.get_texts()[0].set_text('Data')
+        legend.get_texts()[1].set_text('MC')
+    else:
+        legend.get_texts()[0].set_text('Data')
     
     #Save
     if evenX:
@@ -343,11 +344,11 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
     pdfName = re.sub(r'[ ]','_',pdfName)
 
     print 'Saving plot: ' + path + xDataVar + '/' + pdfName
-    for fr in format_fig_output :
-        plt.savefig( path + xDataVar + '/' + pdfName,
-                     format='pdf',orientation='landscape',
-                     dpi=900,papertype='a0',pad_inches=0.1,
-                     bbox_inches='tight')
+#    for fr in format_fig_output :
+    plt.savefig( path + xDataVar + '/' + pdfName,
+                 format='pdf',orientation='landscape',
+                 dpi=900,papertype='a0',pad_inches=0.1,
+                 bbox_inches='tight')
 
     plt.close(fig)
 
