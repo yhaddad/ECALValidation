@@ -8,6 +8,7 @@ import pandas as pd
 import glob, os, re
 import datetime
 import re
+import string
 from math import sqrt
 
 region_labels = {
@@ -16,14 +17,14 @@ region_labels = {
     "EB-bad"             : "EB $R_{9} < 0.94$",
     "EB-absEta_0_1"      : "EB $\mid\eta\mid < 1$",
     "EB-absEta_1_1.4442" : "EB $1 < \mid\eta\mid < 1.4442$",
-    "EE"                 : "EE",
-    "EE-gold"            : "EE $R_{9} > 0.94$",
-    "EE-bad"             : "EE $R_{9} < 0.94$",
-    "EE-absEta_1.566_2"  : "EE $1.566 < \mid\eta\mid < 2$",
-    "EE-absEta_2_2.5"    : "EE $2 < \mid\eta\mid < 2.5$",
-
-    "gold" :  "$R_{9} > 0.94$",
-    "bad"  :  "$R_{9} < 0.94$"
+    "EE"      : "EE",
+    "EE-gold" : "EE $R_{9} > 0.94$",
+    "EE-bad" : "EE $R_{9} < 0.94$",
+    "EE-absEta_1.566_2" : "EE $1.566 < \mid\eta\mid < 2$",
+    "EE-absEta_2_2.5" : "EE $2 < \mid\eta\mid < 2.5$",
+    "inclusive" : "All $\mid\eta\mid$ and $R_{9}$",
+    "gold" : "All $\mid\eta\mid$  $R_{9} > 0.94$",
+    "bad" : "All $\mid\eta\mid$ $R_{9} < 0.94$"
 }
 
 var_labels = {
@@ -34,11 +35,14 @@ var_labels = {
     "additionalSmearing" : "Additional Smearing",
     "chi2data"           : "$\chi^{2}$",
     "events_lumi"        : "events/lumi",
-    "sigmaeff_data"      : "$\sigma_{eff}$"
+    "sigmaeff_data"      : "$\sigma_{eff}$",
+    "sigmaeff_data_thirty"      : "$\sigma_{eff30}$",
+    "sigmaeff_data_fifty"      : "$\sigma_{eff50}$"
 }
 
 format_fig_output = ['pdf','png']
-def read_regions_from_table(path = "",tableFile= ""):
+
+def read_regions_from_table(path = "",tableFile= "",xVar=""):
 
     regions = []
     with open(path+'/'+tableFile) as f:
@@ -48,8 +52,18 @@ def read_regions_from_table(path = "",tableFile= ""):
             if 'category' in line: continue
 
             region = line.split('&')[0]
-            if region.split('-runNumber')[0] not in regions:
-                regions.append(region.split('-runNumber')[0])
+            if xVar == '':
+                if region.split('-runNumber')[0] not in regions:
+                    regions.append(region.split('-runNumber')[0])
+            else:
+                part = re.findall('[%s]+' % string.ascii_letters,region.replace(xVar,''))
+                if len(part) == 0:
+                    part = 'inclusive'
+                    if part not in regions:
+                        regions.append(part)
+                else:
+                    if part[0] not in regions:
+                        regions.append(part[0])
 
     return regions
 
@@ -66,6 +80,81 @@ def read_regions_from_regionsfile(path = "",regionsFile=""):
 
     return regions
 
+
+def parse_table_over_regions(path = "", tableFile = "",category="",xVar=""):
+
+    assert xVar != "", "The x variable name must be specified!"
+
+    if category == "inclusive":
+        cats = ['EB','EE','gold','bad'] #if inclusive specify the general eta and R9 regions to check against
+    else:
+        cats = [category]
+
+    lines = []
+    varmins = []
+    varmaxes = []
+
+    text = open(path+tableFile).read()
+    text = re.sub('\\pm','~',text)
+    text = re.sub(r'[\\£@#${}^]','',text)
+
+    assert xVar in text, "The specified variable label must be in the stability file!"
+
+    #Parse top line for variables
+    variables = text.split("\n")[0].split(' & ')
+
+    for line in text.split('\n'):
+
+        if line == '': continue
+        if line[0] == '#': continue
+        if 'category' in line: continue
+
+        if category == 'inclusive':
+            if not any(c in line.split('&')[0] for c in cats):
+                lines.append(line)
+                varmins.append(float(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[0]))
+                varmaxes.append(float(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[1]))
+        else:
+            if category in line.split('&')[0]:
+                lines.append(line)
+                varmins.append(float(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[0]))
+                varmaxes.append(float(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[1]))
+
+    #If there's nothing for this category, return an empty dataframe
+    if len(lines) == 0: return pd.DataFrame()
+
+    data = pd.DataFrame()
+    data[xVar + '_min'] = varmins
+    data[xVar + '_max'] = varmaxes
+
+    variables = [xVar+'min',xVar+'max'] + variables[2:]
+
+    for i in range(2,len(variables),1):
+        values = []
+        errors = []
+        for line in lines:
+            value = line.split('&')[i].replace(' ','')
+
+            if '--' in value: value = '0'
+
+            if len(value.split('~')) == 2:
+                values.append(float(value.split('~')[0]))
+                errors.append(float(value.split('~')[1]))
+            elif len(value.split('~')) == 1:
+                values.append(float(value))
+                errors.append(0.0)
+
+            if 'mc' in variables[i]:
+                variables[i] = variables[i].replace("mc","MC")
+            if '/' in variables[i]:
+                variables[i] = variables[i].replace("/","_")
+
+        data[variables[i]] = values
+        data[variables[i]+'_err'] = errors
+
+    return data
+
+
 def read_run_range(path = "", file = ""):
 
     raw_    = {
@@ -73,7 +162,7 @@ def read_run_range(path = "", file = ""):
         'Nevents'   : [],
         'UnixTime'  : []
     }
-    columns = ['run_number', 'Nevents', 'UnixTime']
+
     with open(path+file) as f:
         for line in f.read().split('\n'):
             if len(line)==0: continue
@@ -81,7 +170,6 @@ def read_run_range(path = "", file = ""):
             raw_['run_number'].append(values[0])
             raw_['Nevents'   ].append(values[1])
             raw_['UnixTime'  ].append(values[2])
-
     data_ = pd.DataFrame(raw_)
 
     #Transform the entries
@@ -136,7 +224,7 @@ def append_variables(path='',file='',data=None,category=''):
     return data_
 
 
-def plot_stability( time = None, datavalues = None, mcvalue = None, dataerrors = None, mcerror = None, label = '', category = '', path = "", evenX = False):
+def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors = None, mcerrors = None, label = '', category = '', path = "", evenX = False, xVar = ''):
 
     left, width = 0.1, 1.0
     bottom, height = 0.1, 0.5
@@ -152,20 +240,20 @@ def plot_stability( time = None, datavalues = None, mcvalue = None, dataerrors =
 
     ax_hist.yaxis.set_major_formatter(nullfmt)
 
-    xPlaceholder = range(1,1+len(time),1)
+    xPlaceholder = range(1,1+len(xData),1)
     if evenX:
         ax_plot.errorbar(xPlaceholder,datavalues,yerr=dataerrors,capthick=0,marker='o',ms=5,ls='None',)
     else:
-        ax_plot.errorbar(time,datavalues,yerr=dataerrors,capthick=0,marker='o',ms=5,ls='None',)
+        ax_plot.errorbar(xData,datavalues,yerr=dataerrors,capthick=0,marker='o',ms=5,ls='None',)
 
     # customise the axes
-    timevar = time.name
-    if timevar == 'time':
+    xDataVar = xData.name
+    if xDataVar == 'time':
         ax_plot.xaxis.set_minor_locator(dates.DayLocator(interval=2))
         ax_plot.xaxis.set_minor_formatter(dates.DateFormatter('%d\n%a'))
         ax_plot.xaxis.set_major_locator(dates.MonthLocator())
         ax_plot.xaxis.set_major_formatter(dates.DateFormatter('\n\n\n%b\n%Y'))
-    elif (timevar == 'run_max' or timevar == 'run_min') and not evenX:
+    elif (xDataVar == 'run_max' or xDataVar == 'run_min') and not evenX:
         majorLocator = MultipleLocator(125)
         minorLocator = MultipleLocator(62.5)
         ax_plot.xaxis.set_major_locator(majorLocator)
@@ -174,15 +262,15 @@ def plot_stability( time = None, datavalues = None, mcvalue = None, dataerrors =
         ax_plot.xaxis.set_major_formatter(majorFormatter)
         xlabels = ax_plot.get_xticklabels()
         plt.setp(xlabels, rotation=90, fontsize=10)
-    elif (timevar == 'run_max' or timevar == 'run_min') and evenX:
+    elif (xDataVar == 'run_max' or xDataVar == 'run_min') and evenX:
         majorLocator = MultipleLocator(2)
         minorLocator = MultipleLocator(1)
         ax_plot.xaxis.set_major_locator(majorLocator)
         ax_plot.xaxis.set_minor_locator(minorLocator)
         xlabels = ax_plot.get_xticks().tolist()
 
-        for i in range(2,len(time),2):
-            xlabels[i/2+1] = time.tolist()[i-1]
+        for i in range(2,len(xData),2):
+            xlabels[i/2+1] = xData.tolist()[i-1]
 
         for i in range(len(xlabels)):
             if xlabels[i] < 200000: xlabels[i] = ''
@@ -218,15 +306,24 @@ def plot_stability( time = None, datavalues = None, mcvalue = None, dataerrors =
     ax_hist.annotate('Std dev. = {:3.3f}'.format(np.std(npVals)),(hmax/6,ymin-(ymax-ymin)*0.175),fontsize=11,annotation_clip=False,xycoords='data')
 
     #Add line for the MC
-    if (mcvalue > -999):
+    if (len(mcvalues) > 0):
         xmin,xmax = 0,1
-        ax_plot.axhline(y=mcvalue+mcerror,
-                        xmin=xmin,xmax=xmax,c='red',linewidth=1,clip_on=True,linestyle='dashed')
-        ax_plot.axhline(y=mcvalue-mcerror,
-                        xmin=xmin,xmax=xmax,c='red',linewidth=1,clip_on=True,linestyle='dashed')
-        ax_plot.axhline(y=mcvalue,
-                        xmin=xmin,xmax=xmax,c='blue',linewidth=1,clip_on=True,linestyle='solid',label='MC')
-        ax_hist.annotate('MC = {:3.3f} $\pm$ {:3.3f}'.format(mcvalue,mcerror),(hmax/6,ymin-(ymax-ymin)*0.25),fontsize=11,annotation_clip=False,xycoords='data')
+        ax_plot.errorbar(xData,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=5,ls='None',c='Red')
+
+        xNP = np.asarray(xData.tolist())
+        mcNP = np.asarray(mcvalues.tolist())
+        mcErrNP = np.asarray(mcerrors.tolist())
+
+        ax_plot.fill_between(xNP,mcNP-mcErrNP,mcNP+mcErrNP,alpha=0.3,edgecolor='red', facecolor='red')
+
+
+#        ax_plot.axhline(y=mcvalue+mcerror,
+#                        xmin=xmin,xmax=xmax,c='red',linewidth=1,clip_on=True,linestyle='dashed')
+#        ax_plot.axhline(y=mcvalue-mcerror,
+#                        xmin=xmin,xmax=xmax,c='red',linewidth=1,clip_on=True,linestyle='dashed')
+#        ax_plot.axhline(y=mcvalue,
+#                        xmin=xmin,xmax=xmax,c='blue',linewidth=1,clip_on=True,linestyle='solid',label='MC')
+#        ax_hist.annotate('MC = {:3.3f} $\pm$ {:3.3f}'.format(mcvalue,mcerror),(hmax/6,ymin-(ymax-ymin)*0.25),fontsize=11,annotation_clip=False,xycoords='data')
 
     #Legend
     # legend = ax_plot.legend(loc='lower center',numpoints=1)
@@ -237,17 +334,17 @@ def plot_stability( time = None, datavalues = None, mcvalue = None, dataerrors =
 
     #Save
     if evenX:
-        timevar = timevar + '_even'
+        xDataVar = xDataVar + '_even'
 
-    if not os.path.exists(path+'/'+timevar):
-        os.makedirs(path+'/'+timevar)
+    if not os.path.exists(path+'/'+xDataVar):
+        os.makedirs(path+'/'+xDataVar)
 
     pdfName = category + '_' + re.sub(r'[\\@#$/{}^]','', label) + '.pdf'
     pdfName = re.sub(r'[ ]','_',pdfName)
 
-    print 'Saving plot: ' + path + timevar + '/' + pdfName
+    print 'Saving plot: ' + path + xDataVar + '/' + pdfName
     for fr in format_fig_output :
-        plt.savefig( path + timevar + '/' + pdfName,
+        plt.savefig( path + xDataVar + '/' + pdfName,
                      format='pdf',orientation='landscape',
                      dpi=900,papertype='a0',pad_inches=0.1,
                      bbox_inches='tight')
