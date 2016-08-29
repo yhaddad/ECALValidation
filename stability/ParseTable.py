@@ -249,7 +249,7 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
     # customise the axes
     xDataVar = xData.name
     if xDataVar == 'time':
-        ax_plot.xaxis.set_minor_locator(dates.DayLocator(interval=2))
+        ax_plot.xaxis.set_minor_locator(dates.DayLocator(interval=3))
         ax_plot.xaxis.set_minor_formatter(dates.DateFormatter('%d\n%a'))
         ax_plot.xaxis.set_major_locator(dates.MonthLocator())
         ax_plot.xaxis.set_major_formatter(dates.DateFormatter('\n\n\n%b\n%Y'))
@@ -346,15 +346,16 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
     if not os.path.exists(path+'/'+xDataVar):
         os.makedirs(path+'/'+xDataVar)
 
-    pdfName = category + '_' + re.sub(r'[\\@#$/{}^]','', label) + '.pdf'
-    pdfName = re.sub(r'[ ]','_',pdfName)
+    fileName = category + '_' + re.sub(r'[\\@#$/{}^]','', label)
+    fileName = re.sub(r'[ ]','_',fileName)
 
-    print 'Saving plot: ' + path + xDataVar + '/' + pdfName
-#    for fr in format_fig_output :
-    plt.savefig( path + xDataVar + '/' + pdfName,
-                 format='pdf',orientation='landscape',
-                 dpi=900,papertype='a0',pad_inches=0.1,
-                 bbox_inches='tight')
+    for fType in format_fig_output:
+
+        print 'Saving plot: ' + path + xDataVar + '/' + fileName + '.' + fType
+        plt.savefig( path + xDataVar + '/' + fileName+'.'+fType,
+                     format=fType,orientation='landscape',
+                     dpi=200,papertype='a4',pad_inches=0.1,
+                     bbox_inches='tight')
 
     plt.close(fig)
 
