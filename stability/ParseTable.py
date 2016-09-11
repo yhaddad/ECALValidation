@@ -27,7 +27,7 @@ region_labels = {
     "bad" : "All $\mid\eta\mid$ $R_{9} < 0.94$"
 }
 
-var_labels = {  
+var_labels = {
     "DeltaM_data" : "$\Delta m$",
     "DeltaP"      : "$\Delta p$",
     "width_data"  : "$\sigma_{CB}$",
@@ -37,8 +37,9 @@ var_labels = {
     "events_lumi"        : "events/lumi",
     "sigmaeff_data"      : "$\sigma_{eff}$",
     "sigmaeff_data_thirty"      : "$\sigma_{eff30}$",
-    "sigmaeff_data_fifty"      : "$\sigma_{eff50}$"
-} 
+    "sigmaeff_data_fifty"      : "$\sigma_{eff50}$",
+    "nPV" : "$N_{pv}$"
+}
 
 format_fig_output = ['pdf','png']
 
@@ -50,15 +51,15 @@ def read_regions_from_table(path = "",tableFile= "",xVar=""):
             if line == '': continue
             if line[0] == '#': continue
             if 'category' in line: continue
-            
+
             region = line.split('&')[0]
             if xVar == '':
                 if region.split('-runNumber')[0] not in regions:
                     regions.append(region.split('-runNumber')[0])
             else:
                 part = re.findall('[%s]+' % string.ascii_letters,region.replace(xVar,''))
-                if len(part) == 0: 
-                    part = 'inclusive' 
+                if len(part) == 0:
+                    part = 'inclusive'
                     if part not in regions:
                         regions.append(part)
                 else:
@@ -108,7 +109,7 @@ def parse_table_over_regions(path = "", tableFile = "",category="",xVar=""):
         if line == '': continue
         if line[0] == '#': continue
         if 'category' in line: continue
-        
+
         if category == 'inclusive':
             if not any(c in line.split('&')[0] for c in cats):
                 lines.append(line)
@@ -122,13 +123,15 @@ def parse_table_over_regions(path = "", tableFile = "",category="",xVar=""):
 
     #If there's nothing for this category, return an empty dataframe
     if len(lines) == 0: return pd.DataFrame()
-    
+    varmins  = np.array(varmins)
+    varmaxes = np.array(varmaxes)
     data = pd.DataFrame()
     data[xVar + '_min'] = varmins
     data[xVar + '_max'] = varmaxes
+    data[xVar + '_err'] = (varmaxes - varmins)/2.0
+    data[xVar ]         = (varmaxes + varmins)/2.0
 
     variables = [xVar+'min',xVar+'max'] + variables[2:]
-
     for i in range(2,len(variables),1):
         values = []
         errors = []
@@ -148,7 +151,7 @@ def parse_table_over_regions(path = "", tableFile = "",category="",xVar=""):
                 variables[i] = variables[i].replace("mc","MC")
             if '/' in variables[i]:
                 variables[i] = variables[i].replace("/","_")
-       
+
         data[variables[i]] = values
         data[variables[i]+'_err'] = errors
 
@@ -162,16 +165,9 @@ def read_run_range(path = "", file = ""):
         'Nevents'   : [],
         'UnixTime'  : []
     }
-
-    with open(path+file) as f:
-        for line in f.read().split('\n'):
-            if len(line)==0: continue
-            values = line.split('\t')
-            raw_['run_number'].append(values[0])
-            raw_['Nevents'   ].append(values[1])
-            raw_['UnixTime'  ].append(values[2])
-    data_ = pd.DataFrame(raw_)
-
+    data_ = pd.read_csv(path+'/'+file,
+                sep="\t",
+                names = ["run_number","Nevents","UnixTime"])
     #Transform the entries
     data_.Nevents = [float(x) for x in data_.Nevents]
     data_[ "UnixTime_min" ] = [ int(x.split('-')[0]) for x in data_.UnixTime ]
@@ -192,14 +188,16 @@ def append_variables(path='',file='',data=None,category=''):
     text = re.sub('\\pm','~',text)
     text = re.sub(r'[\\£@#${}^]','',text)
 
+
+
     #Parse top line for variables
     variables = text.split("\n")[0].split(' & ')
-    
+
     for i in range(2,len(variables),1):
         values = []
         errors = []
         for line in text.split('\n'):
-            
+
             if line.split('-runNumber')[0] == category:
 
                 value = line.split(' & ')[i]
@@ -217,14 +215,14 @@ def append_variables(path='',file='',data=None,category=''):
             variables[i] = variables[i].replace("mc","MC")
         if '/' in variables[i]:
             variables[i] = variables[i].replace("/","_")
-            
-        data_[variables[i]] = values
+
+        data_[variables[i]]        = values
         data_[variables[i]+'_err'] = errors
 
     return data_
 
 
-def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors = None, mcerrors = None, label = '', category = '', path = "", evenX = False, xVar = ''):
+def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = None, dataerrors = None, mcerrors = None, label = '', category = '', path = "", evenX = False, xVar = ''):
 
     left, width = 0.1, 1.0
     bottom, height = 0.1, 0.5
@@ -235,21 +233,29 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
 
     fig = plt.figure()
 
+
+    # making IOV's
+    iov =  pd.read_csv( 'pedestals_iovs.dat' ,sep=' ', names = ['run', 'date', 'time', 'playload','crap'])
+
     ax_plot = plt.axes(rect_plot)
     ax_hist = plt.axes(rect_hist)
+    for k, spine in ax_plot.spines.items():
+        spine.set_zorder(10)
+    for k, spine in ax_hist.spines.items():
+        spine.set_zorder(10)
 
     ax_hist.yaxis.set_major_formatter(nullfmt)
 
     xPlaceholder = range(1,1+len(xData),1)
     if evenX:
-        ax_plot.errorbar(xPlaceholder,datavalues,yerr=dataerrors,capthick=0,marker='o',ms=4,ls='None',)
+        ax_plot.errorbar(xPlaceholder,datavalues,yerr=dataerrors,xerr=xData_err,capthick=0,marker='o',ms=4,ls='None',zorder=10,)
     else:
-        ax_plot.errorbar(xData,datavalues,yerr=dataerrors,capthick=0,marker='o',ms=4,ls='None',)
-
+        ax_plot.errorbar(xData,datavalues       ,yerr=dataerrors,xerr=xData_err,capthick=0,marker='o',ms=4,ls='None',zorder=10,)
+        # plot IOV's
     # customise the axes
     xDataVar = xData.name
     if xDataVar == 'time':
-        ax_plot.xaxis.set_minor_locator(dates.DayLocator(interval=3))
+        ax_plot.xaxis.set_minor_locator(dates.DayLocator(interval=10))
         ax_plot.xaxis.set_minor_formatter(dates.DateFormatter('%d\n%a'))
         ax_plot.xaxis.set_major_locator(dates.MonthLocator())
         ax_plot.xaxis.set_major_formatter(dates.DateFormatter('\n\n\n%b\n%Y'))
@@ -263,6 +269,8 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
         xlabels = ax_plot.get_xticklabels()
         plt.setp(xlabels, rotation=90, fontsize=10)
     elif (xDataVar == 'run_max' or xDataVar == 'run_min') and evenX:
+        #majorLocator = MultipleLocator(2)
+        #minorLocator = MultipleLocator(1)
         majorLocator = MultipleLocator(2)
         minorLocator = MultipleLocator(1)
         ax_plot.xaxis.set_major_locator(majorLocator)
@@ -300,7 +308,7 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
     ax_plot.set_ylabel(label)
 
     nbin = 20
-    y,_,_ = ax_hist.hist(datavalues, bins=nbin, orientation='horizontal', histtype='stepfilled', alpha=0.6)
+    y,_,_ = ax_hist.hist(datavalues, bins=nbin, orientation='horizontal', histtype='stepfilled', alpha=0.6,zorder=10,)
     hmax = y.max()
     ax_hist.set_xlim((0,hmax*1.1))
 
@@ -310,39 +318,58 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
     npVals = np.asarray(datavalues)
     ax_hist.annotate('Mean = {:3.3f}'.format(np.mean(npVals)),(hmax/6,ymin-(ymax-ymin)*0.1),fontsize=11,annotation_clip=False,xycoords='data')
     ax_hist.annotate('Std dev. = {:3.3f}'.format(np.std(npVals)),(hmax/6,ymin-(ymax-ymin)*0.175),fontsize=11,annotation_clip=False,xycoords='data')
-    
-    #Add line for the MC 
+
+    #Add line for the MC
     if (len(mcvalues) > 0):
         if evenX:
-            ax_plot.errorbar(xPlaceholder,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=4,ls='None',c='Red')
+            ax_plot.errorbar(xPlaceholder,mcvalues,xerr=xData_err,)
+            if xData_err is not None :
+                ax_plot.bar(xPlaceholder,mcerrors,
+                            bottom=mcvalues-mcerrors/2,width=2*xData_err,
+                            color='r',alpha=0.3, zorder=10, align='center',edgecolor='red')
+                ax_plot.bar(xPlaceholder,mcerrors,
+                            bottom=mcvalues-mcerrors/2,width=2*xData_err, fill=False,
+                            color='r',alpha=1, zorder=10, align='center',edgecolor='red')
         else:
-            ax_plot.errorbar(xData,mcvalues,yerr=mcerrors,capthick=0,marker='o',ms=4,ls='None',c='Red')
+            ax_plot.errorbar(xData       ,mcvalues,xerr=xData_err,capthick=0,marker='.',ms=4,ls='None',c='Red',zorder=10)
+            if xData_err is not None :
+                ax_plot.bar(xData,mcerrors,
+                            bottom=mcvalues-mcerrors/2,width=2*xData_err,
+                            color='r',alpha=0.3, zorder=10, align='center',edgecolor='red')
+                ax_plot.bar(xData,mcerrors,
+                            bottom=mcvalues-mcerrors/2,width=2*xData_err, fill=False,
+                            color='r',alpha=1, zorder=10, align='center',edgecolor='red')
 
         if evenX:
             xNP = np.asarray(xPlaceholder)
         else:
             xNP = np.asarray(xData.tolist())
 
-        mcNP = np.asarray(mcvalues.tolist())
+        mcNP    = np.asarray(mcvalues.tolist())
         mcErrNP = np.asarray(mcerrors.tolist())
 
-        ax_plot.fill_between(xNP,mcNP-mcErrNP,mcNP+mcErrNP,alpha=0.3,edgecolor='red', facecolor='red')
-
+        # if ('run_max' in xData.name or  'run_min' in xData.name) and evenX:
+        #     for v in iov['run']:
+        #         for j in range(0, len(xData)-1):
+        #             if v >= xData[j] and v < xData[j+1] :
+        #                 ax_plot.axvline(x=xData[j], color='red')
         if xVar == '':
             ax_hist.annotate('MC = {:3.3f} $\pm$ {:3.3f}'.format(mcvalues[1],mcerrors[1]),(hmax/6,ymin-(ymax-ymin)*0.25),fontsize=11,annotation_clip=False,xycoords='data')
-        
+
     #Legend
-    legend = ax_plot.legend(loc='lower center',numpoints=1)
+    legend = ax_plot.legend(loc='upper right',numpoints=1)
     if (len(mcvalues) > 0):
         legend.get_texts()[0].set_text('Data')
         legend.get_texts()[1].set_text('MC')
     else:
         legend.get_texts()[0].set_text('Data')
-    
+    ax_hist.grid(which='major', color='0.7' , linestyle='--',dashes=(5,1),zorder=0)
+    ax_plot.grid(which='major', color='0.7' , linestyle='--',dashes=(5,1),zorder=0)
+    ax_plot.grid(which='minor', color='0.85', linestyle='--',dashes=(5,1),zorder=0)
     #Save
     if evenX:
         xDataVar = xDataVar + '_even'
-        
+
     if not os.path.exists(path+'/'+xDataVar):
         os.makedirs(path+'/'+xDataVar)
 
@@ -358,11 +385,3 @@ def plot_stability( xData = None, datavalues = None, mcvalues = None, dataerrors
                      bbox_inches='tight')
 
     plt.close(fig)
-
-
-
-
-
-
-
-
