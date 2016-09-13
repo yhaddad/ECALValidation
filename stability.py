@@ -12,7 +12,7 @@ import pandas   as pd
 def get_options():
     parser = OptionParser()
     parser.add_option("-r", "--run-range",
-                      dest="inRunRange", default='runRange.dat',
+                      dest="inRunRange", default='',
                       help="""
                       Input configuration file that contains the run ranges.
                       This file is produced by the Zfitter (please check the documentation)
@@ -48,18 +48,32 @@ def get_options():
                       Specify whether the plot should be over run range, or regions
                       ''')
 
+    parser.add_option('-d','--outputName',
+                      dest='outputName',default='',
+                      help="""
+                      Output directory for the plots
+                      """)
+
     return parser.parse_args()
 
 
 if __name__ == '__main__':
-    (opt, args) =  get_options()
-    assert opt.inStability != '', 'No stability file input given, use -s <stability.tex>'
-    assert opt.inRunRange  != '', 'No run range file input given, use -r <runRange.dat>'
-    assert opt.invMass     != '', 'No invariant mass name specified, use -i <invariant mass>'
 
-    print "Run range file to be used is "   ,opt.inRunRange
+    (opt, args) =  get_options()
+
+    assert opt.inStability != '', 'No stability file input given, use -s <stability.tex>'
+    assert opt.inRunRange  != '' or opt.xVar != '', 'No runranges or variable to scan over specified'
+    assert opt.invMass     != '', 'No invariant mass name specified, use -i <invariant mass>'
+    assert opt.outputName      != '', 'No output name specified'
+
+    if opt.inRunRange != '':
+        print "Run range file to be used is "   ,opt.inRunRange
+    else:
+        print "Scan variable is ",opt.xVar
     print "Stability file to be used is "   ,opt.inStability
     print "Invariant mass that was used is ",opt.invMass
+    print "Plot output directory is plot-stability/",opt.outputName
+
     if opt.xVar != '':
         print "x-axis variable is ", opt.xVar
     else:
@@ -81,13 +95,16 @@ if __name__ == '__main__':
         copyfile(opt.inRunRange , data_path +'/'+ runRangeFile)
     if opt.inStability != data_path + stabilityFile:
         copyfile(opt.inStability, data_path +'/'+ stabilityFile)
+        print "Stability .tex file is now at " + data_path +'/'+ stabilityFile
 
-    print "They can be found in data/ as " + runRangeFile + " and " + stabilityFile
+    if opt.inRunRange != '':
+        runRangeFile  = opt.inRunRange.split('/')[-1]
+        if opt.inRunRange != data_path + runRangeFile:
+            copyfile(opt.inRunRange , data_path +'/'+ runRangeFile)
+            print "Runrange file is now at " + data_path +'/'+ runRangeFile
 
-    if not os.path.exists(plot_path):
-        os.makedirs(plot_path)
 
-
+    #Reading regions from the table file
     regions = pt.read_regions_from_table(path=data_path,tableFile=stabilityFile,xVar=opt.xVar)
     print "categories :: ", regions
 
