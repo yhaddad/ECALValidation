@@ -28,17 +28,31 @@ region_labels = {
 }
 
 var_labels = {
-    "DeltaM_data" : "$\Delta m$",
-    "DeltaP"      : "$\Delta p$",
-    "width_data"  : "$\sigma_{CB}$",
-    "rescaledWidth_data" : "$\sigma_{CB}$ (Rescaled)",
-    "additionalSmearing" : "Additional Smearing",
-    "chi2data"           : "$\chi^{2}$",
-    "events_lumi"        : "events/lumi",
-    "sigmaeff_data"      : "$\sigma_{eff}$",
-    "sigmaeff_data_thirty"      : "$\sigma_{eff30}$",
-    "sigmaeff_data_fifty"      : "$\sigma_{eff50}$",
-    "nPV" : "$N_{pv}$"
+    "DeltaM_data"           : "$\Delta m$",
+    "DeltaP"                : "$\Delta p$",
+    "width_data"            : "$\sigma_{CB}$",
+    "rescaledWidth_data"    : "$\sigma_{CB}$ (Rescaled)",
+    "additionalSmearing"    : "Additional Smearing",
+    "chi2data"              : "$\chi^{2}$",
+    "events_lumi"           : "events/lumi",
+    "sigmaeff_data"         : "$\sigma_{eff}$",
+    "sigmaeff_data_thirty"  : "$\sigma_{eff30}$",
+    "sigmaeff_data_fifty"   : "$\sigma_{eff50}$",
+    "nPV"                   : "$N_{pv}$"
+}
+
+var_ranges = {
+    "DeltaM_data"           : [-4,4],
+    "DeltaP"                : [-8,8],
+    "width_data"            : [ 0,8],
+    "rescaledWidth_data"    : [ 0,8],
+    "additionalSmearing"    : [ 0,8],
+    "chi2data"              : [ 0,8],
+    "events_lumi"           : [-8,8],
+    "sigmaeff_data"         : [-8,8],
+    "sigmaeff_data_thirty"  : [-8,8],
+    "sigmaeff_data_fifty"   : [-8,8],
+    "nPV"                   : [-8,8]
 }
 
 format_fig_output = ['pdf','png']
@@ -222,9 +236,20 @@ def append_variables(path='',file='',data=None,category=''):
     return data_
 
 
-def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = None, dataerrors = None, mcerrors = None, label = '', category = '', path = "", evenX = False, xVar = ''):
+def draw_iov(ax, xData = None, iovs=[]):
+    for v in iovs:
+        for j in range(0, len(xData)-1):
+            if v >= xData[j] and v < xData[j+1]:
+                print "iov at ==", xData[j]
+                ax.axvline(x=xData[j], color='red')
 
-    left, width = 0.1, 1.0
+def plot_stability( xData = None, xData_err=None,
+                    datavalues = None, mcvalues = None,
+                    dataerrors = None, mcerrors = None,
+                    label = '', category = '', path = "",
+                    evenX = False, xVar = '', iovs = None, var=None):
+
+    left, width    = 0.1, 1.0
     bottom, height = 0.1, 0.5
     rect_hist = [left+width+0.01, bottom, 0.2, height]
     rect_plot = [left, bottom, width, height]
@@ -232,10 +257,6 @@ def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = 
     nullfmt = NullFormatter()
 
     fig = plt.figure()
-
-
-    # making IOV's
-    iov =  pd.read_csv( 'pedestals_iovs.dat' ,sep=' ', names = ['run', 'date', 'time', 'playload','crap'])
 
     ax_plot = plt.axes(rect_plot)
     ax_hist = plt.axes(rect_hist)
@@ -248,10 +269,14 @@ def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = 
 
     xPlaceholder = range(1,1+len(xData),1)
     if evenX:
-        ax_plot.errorbar(xPlaceholder,datavalues,yerr=dataerrors,xerr=xData_err,capthick=0,marker='o',ms=4,ls='None',zorder=10,)
+        print "[yacine] just a place holder... "
+        ax_plot.errorbar(xPlaceholder,datavalues,
+                         yerr=dataerrors,xerr=xData_err,
+                         capthick=0,marker='.',ms=6,ls='None',zorder=10,)
     else:
-        ax_plot.errorbar(xData,datavalues       ,yerr=dataerrors,xerr=xData_err,capthick=0,marker='o',ms=4,ls='None',zorder=10,)
-        # plot IOV's
+        ax_plot.errorbar(xData,datavalues       ,
+                         yerr=dataerrors,xerr=xData_err,
+                         capthick=0,marker='.',ms=6,ls='None',zorder=10,)
     # customise the axes
     xDataVar = xData.name
     if xDataVar == 'time':
@@ -260,6 +285,7 @@ def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = 
         ax_plot.xaxis.set_major_locator(dates.MonthLocator())
         ax_plot.xaxis.set_major_formatter(dates.DateFormatter('\n\n\n%b\n%Y'))
     elif (xDataVar == 'run_max' or xDataVar == 'run_min') and not evenX:
+        print "[yacine] -- this is drawing with not evenX "
         majorLocator = MultipleLocator(125)
         minorLocator = MultipleLocator(62.5)
         ax_plot.xaxis.set_major_locator(majorLocator)
@@ -269,8 +295,6 @@ def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = 
         xlabels = ax_plot.get_xticklabels()
         plt.setp(xlabels, rotation=90, fontsize=10)
     elif (xDataVar == 'run_max' or xDataVar == 'run_min') and evenX:
-        #majorLocator = MultipleLocator(2)
-        #minorLocator = MultipleLocator(1)
         majorLocator = MultipleLocator(2)
         minorLocator = MultipleLocator(1)
         ax_plot.xaxis.set_major_locator(majorLocator)
@@ -279,10 +303,15 @@ def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = 
 
         for i in range(2,len(xData),2):
             xlabels[i/2+1] = xData.tolist()[i-1]
-
         for i in range(len(xlabels)):
             if xlabels[i] < 200000: xlabels[i] = ''
-
+        for index, row in iovs.iterrows():
+            for j in range(0, len(xData)-1):
+                if row['run'] >= xData[j] and row['run'] < xData[j+1]:
+                    if 'Run' in row['info'] :
+                        ax_plot.axvline(x=j+1, color='#EBAF3C',ls='--', zorder=5)
+                    else :
+                        ax_plot.axvline(x=j+1, color='#1072C3',ls='--', zorder=5)
         ax_plot.set_xticklabels(xlabels)
         xlabels = ax_plot.get_xticklabels()
         plt.setp(xlabels, rotation=90, fontsize=10)
@@ -294,7 +323,6 @@ def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = 
     ax_hist.xaxis.set_ticks([])
 
     #Get and set the limits for the histogram
-
     if (len(mcvalues) > 0):
         ymin = round(min(datavalues.min(),mcvalues.min())) - 1
         ymax = round(max(datavalues.max(),mcvalues.max())) + 1
@@ -322,23 +350,26 @@ def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = 
     #Add line for the MC
     if (len(mcvalues) > 0):
         if evenX:
-            ax_plot.errorbar(xPlaceholder,mcvalues,xerr=xData_err,)
+            ax_plot.errorbar(xPlaceholder,mcvalues,xerr=xData_err,
+                             capthick=0, marker='.',ms=6,ls='None',c='Red',zorder=10)
             if xData_err is not None :
                 ax_plot.bar(xPlaceholder,mcerrors,
                             bottom=mcvalues-mcerrors/2,width=2*xData_err,
-                            color='r',alpha=0.3, zorder=10, align='center',edgecolor='red')
+                            color='r',alpha=0.3, zorder=8, align='center',edgecolor='red')
                 ax_plot.bar(xPlaceholder,mcerrors,
                             bottom=mcvalues-mcerrors/2,width=2*xData_err, fill=False,
-                            color='r',alpha=1, zorder=10, align='center',edgecolor='red')
+                            color='r',alpha=1, zorder=8, align='center',edgecolor='red')
         else:
-            ax_plot.errorbar(xData       ,mcvalues,xerr=xData_err,capthick=0,marker='.',ms=4,ls='None',c='Red',zorder=10)
+            ax_plot.errorbar(xData ,mcvalues,
+                             xerr=xData_err,capthick=0,
+                             marker='.',ms=6,ls='None',c='Red',zorder=10)
             if xData_err is not None :
                 ax_plot.bar(xData,mcerrors,
                             bottom=mcvalues-mcerrors/2,width=2*xData_err,
-                            color='r',alpha=0.3, zorder=10, align='center',edgecolor='red')
+                            color='r',alpha=0.3, zorder=8, align='center',edgecolor='red')
                 ax_plot.bar(xData,mcerrors,
                             bottom=mcvalues-mcerrors/2,width=2*xData_err, fill=False,
-                            color='r',alpha=1, zorder=10, align='center',edgecolor='red')
+                            color='r',alpha=1, zorder=8, align='center',edgecolor='red')
 
         if evenX:
             xNP = np.asarray(xPlaceholder)
@@ -348,11 +379,6 @@ def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = 
         mcNP    = np.asarray(mcvalues.tolist())
         mcErrNP = np.asarray(mcerrors.tolist())
 
-        # if ('run_max' in xData.name or  'run_min' in xData.name) and evenX:
-        #     for v in iov['run']:
-        #         for j in range(0, len(xData)-1):
-        #             if v >= xData[j] and v < xData[j+1] :
-        #                 ax_plot.axvline(x=xData[j], color='red')
         if xVar == '':
             ax_hist.annotate('MC = {:3.3f} $\pm$ {:3.3f}'.format(mcvalues[1],mcerrors[1]),(hmax/6,ymin-(ymax-ymin)*0.25),fontsize=11,annotation_clip=False,xycoords='data')
 
@@ -363,6 +389,7 @@ def plot_stability( xData = None, xData_err=None, datavalues = None, mcvalues = 
         legend.get_texts()[1].set_text('MC')
     else:
         legend.get_texts()[0].set_text('Data')
+
     ax_hist.grid(which='major', color='0.7' , linestyle='--',dashes=(5,1),zorder=0)
     ax_plot.grid(which='major', color='0.7' , linestyle='--',dashes=(5,1),zorder=0)
     ax_plot.grid(which='minor', color='0.85', linestyle='--',dashes=(5,1),zorder=0)

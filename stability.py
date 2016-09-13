@@ -7,6 +7,7 @@ from stability  import ParseTable as pt
 from shutil     import copyfile
 from optparse   import OptionParser
 from pprint     import pprint
+import pandas   as pd
 
 def get_options():
     parser = OptionParser()
@@ -23,6 +24,15 @@ def get_options():
                       dest="inStability", default='stability.tex',
                       help="""
                       stability tex file produced by the ZFitter
+                      """,
+                      metavar="FILE")
+
+    parser.add_option("--iovs",
+                      dest="iovs_file", default='',
+                      help="""
+                      List of IOV's to be drawn on the history plots
+                      The file should be structured as folowing :
+                      | run | date | time | info |
                       """,
                       metavar="FILE")
 
@@ -82,9 +92,9 @@ if __name__ == '__main__':
     print "categories :: ", regions
 
     # reading iov's
-
-
-
+    iovs = None
+    if os.path.exists(opt.iovs_file):
+        iovs =  pd.read_csv( opt.iovs_file ,sep=' ', names = ['run', 'date', 'time', 'playload', 'info'])
     print "Starting plotmaking..."
     for region in regions:
         print "Category: ",region
@@ -133,18 +143,18 @@ if __name__ == '__main__':
                 #Switches on whether the datapoints are evenly distributed along x
                 evenXs = [False,True]
                 #Plot as function of date or run numbers
-                timevars = ['run_min']#,'run_max','time']
+                timevars = ['run_min']
                 for timevar in timevars:
                     for evenX in evenXs:
                         pt.plot_stability( xData = d[timevar], datavalues = d[var],
                                            dataerrors = d[var+'_err'], mcvalues = mcvalues,
                                            mcerrors = mcerrors, label = pt.var_labels[var],
                                            category = region, path=plot_path, evenX = evenX,
-                                           xVar=opt.xVar)
+                                           xVar=opt.xVar, iovs=iovs, var=var)
             else:
                 if opt.xVar in var : continue
-                pt.plot_stability( xData = d[opt.xVar], xData_err=d[opt.xVar + '_err'], datavalues = d[var],
+                pt.plot_stability( xData  = d[opt.xVar], xData_err=d[opt.xVar + '_err'], datavalues = d[var],
                                    dataerrors = d[var+'_err'], mcvalues = mcvalues,
-                                   mcerrors = mcerrors, label = pt.var_labels[var],
-                                   category = region, path=plot_path, evenX = False,
-                                   xVar=opt.xVar)
+                                   mcerrors   = mcerrors, label = pt.var_labels[var],
+                                   category   = region  , path=plot_path, evenX = False,
+                                   xVar       = opt.xVar, iovs=iovs, var=var)
