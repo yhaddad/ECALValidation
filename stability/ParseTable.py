@@ -7,7 +7,6 @@ import matplotlib.dates as dates
 import pandas as pd
 import glob, os, re
 import datetime
-import re
 import string
 from math import sqrt
 
@@ -67,8 +66,7 @@ def read_regions_from_table(path = "",tableFile= "",xVar=""):
             if 'category' in line: continue
 
             region = line.split('&')[0]
-            if xVar == '':
-                if region.split('-runNumber')[0] not in regions:
+            if xVar == '' and region.split('-runNumber')[0] not in regions:
                     regions.append(region.split('-runNumber')[0])
             else:
                 part = re.findall('[{0!s}]+'.format(string.ascii_letters),region.replace(xVar,''))
@@ -124,8 +122,7 @@ def parse_table_over_regions(path = "", tableFile = "",category="",xVar=""):
         if line[0] == '#': continue
         if 'category' in line: continue
 
-        if category == 'inclusive':
-            if not any(c in line.split('&')[0] for c in cats):
+        if category == 'inclusive' and not any(c in line.split('&')[0] for c in cats):
                 lines.append(line)
                 varmins.append(float(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[0]))
                 varmaxes.append(float(re.findall(r"[-+]?\d*\.\d+|\d+",line.split('&')[0])[1]))
@@ -241,7 +238,7 @@ def draw_iov(ax, xData = None, iovs=None):
         iovs = []
     for v in iovs:
         for j in range(0, len(xData)-1):
-            if v >= xData[j] and v < xData[j+1]:
+            if xData[j] <=  v < xData[j+1]:
                 print "iov at ==", xData[j]
                 ax.axvline(x=xData[j], color='red')
 
