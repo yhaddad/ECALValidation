@@ -49,7 +49,9 @@ def find_FWHM(bins, hist):
     spline  = UnivariateSpline(bins[:-1], hist-maximum/2 , s=0)
     return peak, spline.roots()
 
-def bias_peak_monitor(xbin, hist, x, spl, label='', args = {}):
+def bias_peak_monitor(xbin, hist, x, spl, label='', args = None):
+    if args is None:
+        args = {}
     fig = plt.figure(figsize=(4,4.5))
     plt.subplots_adjust(hspace=0)
     # ----------------------------------
