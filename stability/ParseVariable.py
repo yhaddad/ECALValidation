@@ -62,11 +62,11 @@ def bias_peak_monitor(xbin, hist, x, spl, label='', args = {}):
             horizontalalignment='right',
             verticalalignment='top',
             transform=ax1.transAxes,fontsize=7)
-    ax1.text(0.95,0.90,'peak = %1.2f GeV'% (peaks[0]),
+    ax1.text(0.95,0.90,'peak = {0:1.2f} GeV'.format((peaks[0])),
             horizontalalignment='right',
             verticalalignment='top',
             transform=ax1.transAxes,fontsize=7)
-    ax1.text(0.95,0.85,'FWHM = %1.2f GeV'% (max(roots)-min(roots)),
+    ax1.text(0.95,0.85,'FWHM = {0:1.2f} GeV'.format((max(roots)-min(roots))),
             horizontalalignment='right',
             verticalalignment='top',
             transform=ax1.transAxes,fontsize=7)
