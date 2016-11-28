@@ -71,7 +71,7 @@ def read_regions_from_table(path = "",tableFile= "",xVar=""):
                 if region.split('-runNumber')[0] not in regions:
                     regions.append(region.split('-runNumber')[0])
             else:
-                part = re.findall('[%s]+' % string.ascii_letters,region.replace(xVar,''))
+                part = re.findall('[{0!s}]+'.format(string.ascii_letters),region.replace(xVar,''))
                 if len(part) == 0:
                     part = 'inclusive'
                     if part not in regions:
@@ -236,7 +236,9 @@ def append_variables(path='',file='',data=None,category=''):
     return data_
 
 
-def draw_iov(ax, xData = None, iovs=[]):
+def draw_iov(ax, xData = None, iovs=None):
+    if iovs is None:
+        iovs = []
     for v in iovs:
         for j in range(0, len(xData)-1):
             if v >= xData[j] and v < xData[j+1]:
