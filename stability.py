@@ -64,7 +64,7 @@ if __name__ == '__main__':
     assert opt.inStability != '', 'No stability file input given, use -s <stability.tex>'
     assert opt.inRunRange  != '' or opt.xVar != '', 'No runranges or variable to scan over specified'
     assert opt.invMass     != '', 'No invariant mass name specified, use -i <invariant mass>'
-    assert opt.outputName      != '', 'No output name specified'
+    assert opt.outputName  != '', 'No output name specified'
 
     if opt.inRunRange != '':
         print "Run range file to be used is "   ,opt.inRunRange

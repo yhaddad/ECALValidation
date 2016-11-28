@@ -11,7 +11,7 @@ from scipy.interpolate import UnivariateSpline
 range_header     = ["run","nevent","date"]
 ecal_selections  = {
     "loose25nsRun2" : "(((eleID[0] & 131072)==131072)&&((eleID[1] & 131072)==131072))&&((energySCEle_must_regrCorr_ele[0]/cosh(etaSCEle[0]) >= 25)&&(energySCEle_must_regrCorr_ele[1]/cosh(etaSCEle[1]) >= 25))",
-    "loose" : "(((eleID[0] & 128)==128)&&((eleID[1] & 128)==128))&&((energySCEle_must_regrCorr_ele[0]/cosh(etaSCEle[0]) >= 25)&&(energySCEle_must_regrCorr_ele[1]/cosh(etaSCEle[1]) >= 25))"
+    "loose"         : "(((eleID[0] & 128)==128)&&((eleID[1] & 128)==128))&&((energySCEle_must_regrCorr_ele[0]/cosh(etaSCEle[0]) >= 25)&&(energySCEle_must_regrCorr_ele[1]/cosh(etaSCEle[1]) >= 25))"
 }
 
 regions = {
@@ -39,9 +39,7 @@ def read_ntuple(path="./", cfg="", selection = 'loose'):
         chain.Add(root.file+'/'+root.tree)
     # transform this chain to an array ment to be used later by matplotlib
 
-    data = tree2array( chain,
-                       selection =  ecal_selections[selection],
-                      )
+    data = tree2array( chain, selection =  ecal_selections[selection])
     return data
 def find_FWHM(bins, hist):
     maximum = hist[np.argmax(hist)]
