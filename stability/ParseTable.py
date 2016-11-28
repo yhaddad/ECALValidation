@@ -250,12 +250,13 @@ def plot_stability( xData = None, xData_err=None,
 
     left, width    = 0.1, 1.0
     bottom, height = 0.1, 0.5
-    rect_hist = [left+width+0.01, bottom, 0.2, height]
+    hist_sep       = 0.0
+    rect_hist = [left+width+hist_sep, bottom, 0.25*height, height]
     rect_plot = [left, bottom, width, height]
 
     nullfmt = NullFormatter()
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=(12,6))
 
     ax_plot = plt.axes(rect_plot)
     ax_hist = plt.axes(rect_hist)
@@ -292,7 +293,7 @@ def plot_stability( xData = None, xData_err=None,
         majorFormatter = FormatStrFormatter('%d')
         ax_plot.xaxis.set_major_formatter(majorFormatter)
         xlabels = ax_plot.get_xticklabels()
-        plt.setp(xlabels, rotation=90, fontsize=10)
+        plt.setp(xlabels, rotation=90, fontsize=8)
     elif (xDataVar == 'run_max' or xDataVar == 'run_min') and evenX:
         majorLocator = MultipleLocator(2)
         minorLocator = MultipleLocator(1)
@@ -313,7 +314,7 @@ def plot_stability( xData = None, xData_err=None,
                         ax_plot.axvline(x=j+1, color='#1072C3',ls='--', zorder=5)
         ax_plot.set_xticklabels(xlabels)
         xlabels = ax_plot.get_xticklabels()
-        plt.setp(xlabels, rotation=90, fontsize=10)
+        plt.setp(xlabels, rotation=90, fontsize=8)
 
     ax_plot.xaxis.grid(True, which="minor")
     ax_plot.yaxis.grid()
