@@ -384,7 +384,6 @@ def plot_stability( xData = None, xData_err=None,
 
         if xVar == '':
             ax_hist.annotate('MC = {:3.3f} $\pm$ {:3.3f}'.format(mcvalues[1],mcerrors[1]),(hmax/6,ymin-(ymax-ymin)*0.25),fontsize=11,annotation_clip=False,xycoords='data')
-
     #Legend
     legend = ax_plot.legend(loc='upper right',numpoints=1)
     if (len(mcvalues) > 0):

@@ -1,13 +1,16 @@
 from stability import ParseVariable as pv
 
-mm = pv.monitor(config='config/basic_ecal_configuration.json')
-dd = mm.read_ntuple(path="./", cfg="./config.dat", selection = 'loose')
-print dd
+mm = pv.monitor(config='config/basic_ecal_configuration.json')#, run_ranges='./ntuples/ICHEP_interval_100000.dat')
+mm.read_ntuple(path="./", cfg="./config.dat", selection = 'loose25nsRun2')
+mm.fit(outdir='tmp')
+for v, var in mm.variables.items() :
+    for region in mm.ecal_regions :
+        mm.monitor(var, region, outdir='./tmp')
 
 
 
 """
-def bias_peak_monitor(xbin, hist, x, spl, label='', args = None):
+def bwias_peak_monitor(xbin, hist, x, spl, label='', args = None):
     if args is None:
         args = {}
     fig = plt.figure(figsize=(4,4.5))
