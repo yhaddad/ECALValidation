@@ -74,18 +74,21 @@ class monitor():
         to the a chain of the files
         """
         _config_ =  pd.read_csv(path + "/" + cfg , sep = "\t", names = ['id', 'tree', 'file'], comment ="#")
-        chain = r.TChain('merged')
+        _data_ = {}
         print colored("------- ntuples :", "yellow" )
         for index, root in _config_.iterrows():
-            print colored(" -- ntuple :: %10s -- %12s" % ( root.id, root.file ), "green" )
+            chain = r.TChain('merged_' + str(index) )
             chain.Add(root.file+'/'+root.tree)
-        _data_ = {}
+            _df_ = None
+            for region,cut in self.ecal_regions.items():
+                _cut_ = "&&".join( [cut, self.ecal_selection[selection]] )
+                _df_  = tree2array( chain, selection = _cut_ , branches = self.columns )
+                print colored(" -- ntuple :: %10s -- %12i" % ( root.id, _df_.shape[0] ), "green" )
+                if _data_.get(region,False):
+                    _data_[region] = np.concatenate(_data_[region],  _df_, axis=0)
+                else:
+                    _data_[region] = _df_
         print "shape :: ", chain.GetEntries()
-        for region,cut in self.ecal_regions.items():
-            _cut_ = "&&".join( [cut, self.ecal_selection[selection]] )
-            print _cut_
-            _data_[region] = tree2array( chain, selection = _cut_ , branches = self.columns )
-            print _data_[region].shape
         self.data = self._flatten_data_(_data_)
         return self.data
 
