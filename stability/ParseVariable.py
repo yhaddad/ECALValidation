@@ -74,7 +74,7 @@ class monitor():
         to the a chain of the files
         """
         _config_ =  pd.read_csv(path + "/" + cfg , sep = "\t", names = ['id', 'tree', 'file'], comment ="#")
-        _data_ = {}
+        _data_ = { region : None for region in self.ecal_regions}
         print colored("------- ntuples :", "yellow" )
         for index, root in _config_.iterrows():
             chain = r.TChain('merged_' + str(index) )
@@ -84,10 +84,10 @@ class monitor():
                 _cut_ = "&&".join( [cut, self.ecal_selection[selection]] )
                 _df_  = tree2array( chain, selection = _cut_ , branches = self.columns )
                 print colored(" -- ntuple :: %10s -- %12i" % ( root.id, _df_.shape[0] ), "green" )
-                if _data_.get(region,False):
-                    _data_[region] = np.concatenate(_data_[region],  _df_, axis=0)
-                else:
+                if _data_.get(region, None) == None:
                     _data_[region] = _df_
+                else:
+                    _data_[region] = np.concatenate(_data_[region],  _df_, axis=0)
         print "shape :: ", chain.GetEntries()
         self.data = self._flatten_data_(_data_)
         return self.data
