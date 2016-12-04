@@ -24,13 +24,17 @@ class variable():
             "name"     : "",
             "range"    : "",
             "title"    : "",
-            "bins"     : 100
+            "bins"     : 100,
+            "draw"     : True
         }
         self.__dict__ = self.__template__
         self.__dict__.update(options)
         self.name = name
     def __str__(self):
-        return colored(" -- variable :: %18s -- %12s" % (self.name, "monitor" ), "green" )
+        if self.draw:
+            return colored(" -- variable :: %18s -- %12s" % (self.name, self.draw ), "green" )
+        else:
+            return colored(" -- variable :: %18s -- %12s" % (self.name, self.draw ), "red" )
 
 class monitor():
     def __init__(self,
@@ -83,19 +87,18 @@ class monitor():
             for region,cut in self.ecal_regions.items():
                 _cut_ = "&&".join( [cut, self.ecal_selection[selection]] )
                 _df_  = tree2array( chain, selection = _cut_ , branches = self.columns )
-                print colored(" -- ntuple :: %10s -- %12i" % ( root.id, _df_.shape[0] ), "green" )
+                print colored(" -- ntuple :: %10s -- %10s -- %12i" % ( root.id, region ,_df_.shape[0] ), "green" )
                 if _data_.get(region, None) == None:
                     _data_[region] = _df_
                 else:
-                    _data_[region] = np.concatenate(_data_[region],  _df_, axis=0)
-        print "shape :: ", chain.GetEntries()
+                    _data_[region] = np.concatenate((_data_[region],  _df_), axis=0)
         self.data = self._flatten_data_(_data_)
         return self.data
 
 
     def _flatten_data_(self, indata = None):
         assert indata is not None, colored("[ERROR] the input data seems to be None .... ","red")
-        _data_ = {}
+        _data_  = {}
         for region, dd in indata.items():
             df = pd.DataFrame()
             for name in dd.dtype.fields:
@@ -103,9 +106,17 @@ class monitor():
                 if len(dd[name].shape) > 1 :
                     for i in range(dd[name].shape[1]):
                         df[name + '_' + str(i)] = dd[name][:,i]
+                        pprint(self.variables[name].__dict__)
+                        self.variables[name + '_' + str(i) ] = variable(name, self.variables[name].__dict__.copy())
+                        self.variables[name + '_' + str(i) ].name = name + '_' + str(i)
+                        self.variables[name + '_' + str(i) ].draw = True
+                        self.variables[name].draw = False
                 else:
                     df[name] = dd[name]
             _data_[region] =  df
+        print colored("------- variables status:", "yellow" )
+        for key, var in self.variables.items() :
+            print var
         return _data_
 
     def fit(self, draw_fit=True, outdir = './'):
@@ -116,6 +127,8 @@ class monitor():
         for region in self.ecal_regions:
             print colored("------- drawing : %s" % region , "yellow" )
             for v, var in self.variables.items():
+                print '\t', var
+                if var.draw == False : continue
                 for index, row in self.run_ranges.iterrows():
                     _data_ = self.data[region][np.logical_and(self.data[region].runNumber >= row.run_min,
                                                               self.data[region].runNumber <= row.run_max,
@@ -124,11 +137,15 @@ class monitor():
                     print colored("\t --  : %15s %2i %3i" % (v, index, _data_.shape[0]) , "green" )
 
                     if _data_.shape[0] != 0 :
+                        print var.bins, " ", var.range, " ", var.name
                         y,xbin = np.histogram(_data_[v], bins=var.bins, range=var.range)
+                        if y.sum() == 0 :
+                            print colored('[warning] :: the variable [%s] is empty !! ' % v, 'red')
+                            var.draw = False
+                            continue
                         x    = [(xbin[i]+xbin[i+1])/2.0   for i in range(0,len(xbin)-1)]
                         yerr = np.array([np.sqrt(y[i]) for i in range(0,len(y) )])
                         yerr[yerr == 0] = np.sqrt(-np.log(0.68))
-
                         peak,pmin,pmax,_ = self.find_FWHM(x,y,yerr, xrange=var.range, draw=True,
                                                           label='spline-%s-%i-%i-%s'    % (v, row.run_min, row.run_max, region ),
                                                           title='%s run-range = (%i-%i)'% (region, row.run_min, row.run_max))
