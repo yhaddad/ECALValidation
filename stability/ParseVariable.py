@@ -25,7 +25,8 @@ class variable():
             "range"    : "",
             "title"    : "",
             "bins"     : 100,
-            "draw"     : True
+            "draw"     : True,
+            "fit"      : True
         }
         self.__dict__ = self.__template__
         self.__dict__.update(options)
@@ -149,23 +150,41 @@ class monitor():
                         peak,pmin,pmax,_ = self.find_FWHM(x,y,yerr, xrange=var.range, draw=True,
                                                           label='spline-%s-%i-%i-%s'    % (v, row.run_min, row.run_max, region ),
                                                           title='%s run-range = (%i-%i)'% (region, row.run_min, row.run_max))
+
                         plt.savefig(os.path.join(os.path.join(outdir,v),
                                      'hist-%s-%i-%i-%s.png' % (v, row.run_min, row.run_max, region) ))
                         plt.clf()
                         self.run_ranges.loc[index, '%s_%s_mean' % (v,region)] = _data_[v].mean()
                         self.run_ranges.loc[index, '%s_%s_std'  % (v,region)] = _data_[v].std()
+                        self.run_ranges.loc[index, '%s_%s_krts' % (v,region)] = stats.kurtosis(_data_[v])
+                        self.run_ranges.loc[index, '%s_%s_skew' % (v,region)] = stats.skew(_data_[v])
                         self.run_ranges.loc[index, '%s_%s_peak' % (v,region)] = peak
                         self.run_ranges.loc[index, '%s_%s_pmin' % (v,region)] = pmin
                         self.run_ranges.loc[index, '%s_%s_pmax' % (v,region)] = pmax
                     else:
                         self.run_ranges.loc[index, '%s_%s_mean' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_std'  % (v,region)] = -999.0
+                        self.run_ranges.loc[index, '%s_%s_krts' % (v,region)] = -999.0
+                        self.run_ranges.loc[index, '%s_%s_skew' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_peak' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_pmin' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_pmax' % (v,region)] = -999.0
+
+        # for key, var in self.variables.items() :
+        #     self.variables[ '%s_%s_mean' % (key,region) ] = variable(key, self.variables[key].__dict__.copy())
+        #     self.variables[ '%s_%s_mean' % (key,region) ].name = '%s_%s_mean' % (key,region)
+        #
+        #     self.variables[ '%s_%s_std' % (key,region) ] = variable(key, self.variables[key].__dict__.copy())
+        #     self.variables[ '%s_%s_std' % (key,region) ].name = '%s_%s_std' % (key,region)
+        #
+        #     self.variables[ '%s_%s_skew' % (key,region) ] = variable(key, self.variables[key].__dict__.copy())
+        #     self.variables[ '%s_%s_skew' % (key,region) ].name = '%s_%s_skew' % (key,region)
+        #
+        #     self.variables[ '%s_%s_krts' % (key,region) ] = variable(key, self.variables[key].__dict__.copy())
+        #     self.variables[ '%s_%s_krts' % (key,region) ].name = '%s_%s_krts' % (key,region)
         print self.run_ranges.head
 
-    def monitor(self, var=None, region=None, outdir='./plots'):
+    def monitor_peak(self, var=None, region=None, outdir='./plots'):
 
         datavalues = self.run_ranges['%s_%s_peak' % (var.name, region)]
         xdata      = self.run_ranges.run_number
@@ -187,10 +206,12 @@ class monitor():
         for k, spine in ax_hist.spines.items():
             spine.set_zorder(10)
 
+        ax_plot.set_title ( 'monitoring : %s %s' % (region, var.name) )
+        ax_plot.set_ylabel( var.title )
         ax_hist.yaxis.set_major_formatter(nullfmt)
         y,_,_ = ax_hist.hist(datavalues, bins=var.bins,
-                             orientation='horizontal',
-                             histtype='stepfilled', alpha=0.6,zorder=10,)
+                             orientation = 'horizontal' ,
+                             histtype    = 'stepfilled' , alpha=0.6,zorder=10,)
         xbins = range(1,1+len(datavalues),1)
         xerrs = 0.5 * np.ones(self.run_ranges.shape[0])
         ax_plot.errorbar(xbins,datavalues,color='blue',xerr = xerrs,label='peak',
@@ -212,7 +233,6 @@ class monitor():
             xlabels[i/2+1] = xdata.tolist()[i-1]
         for i in range(len(xlabels)):
             if type(xlabels[i]) == type(1.0): xlabels[i] = ''
-
         ax_plot.set_xticklabels(xlabels, family="monospace")
         xlabels = ax_plot.get_xticklabels()
         plt.setp(xlabels, rotation=90, fontsize=8)
@@ -240,14 +260,81 @@ class monitor():
         plt.savefig(os.path.join(outdir, '%s_%s_peak.pdf' % (var.name, region)), format='png',orientation='landscape',
                     dpi=200,papertype='a4',pad_inches=0.1,
                     bbox_inches='tight')
+    def monitor_mean(self, var=None, region=None, outdir='./plots'):
+            datavalues = self.run_ranges['%s_%s_mean' % (var.name, region)]
+            xdata      = self.run_ranges.run_number
+
+            left, width    = 0.1, 1.0
+            bottom, height = 0.1, 0.5
+            hist_sep       = 0.0
+            rect_hist = [left+width+hist_sep, bottom, 0.25*height, height]
+            rect_plot = [left, bottom, width, height]
+
+            nullfmt = NullFormatter()
+
+            fig = plt.figure(figsize=(12,6))
+
+            ax_plot = plt.axes(rect_plot)
+            ax_hist = plt.axes(rect_hist)
+            for k, spine in ax_plot.spines.items():
+                spine.set_zorder(10)
+            for k, spine in ax_hist.spines.items():
+                spine.set_zorder(10)
+            ax_plot.set_title ( r'monitoring mean: %s %s' % (region, var.name) )
+            print r'$\langle %s \rangle$' % var.title.replace('$','')
+            ax_plot.set_ylabel( r'$\langle %s \rangle$' % var.title.replace('$',r'') )
+            ax_hist.yaxis.set_major_formatter(nullfmt)
+            y,_,_ = ax_hist.hist(datavalues, bins=var.bins,
+                                 orientation='horizontal',
+                                 histtype='stepfilled', alpha=0.6,zorder=10,)
+            xbins = range(1,1+len(datavalues),1)
+            xerrs = 0.5 * np.ones(self.run_ranges.shape[0])
+            ax_plot.errorbar(xbins,datavalues,color='blue',xerr = xerrs,
+                             label='peak',yerr=datavalues/np.sqrt(datavalues),
+                             capthick=0,marker='.',ms=6,ls='None',zorder=10,)
+            majorLocator = MultipleLocator(2)
+            minorLocator = MultipleLocator(1)
+            ax_plot.xaxis.set_major_locator(majorLocator)
+            ax_plot.xaxis.set_minor_locator(minorLocator)
+            xlabels = ax_plot.get_xticks().tolist()
+            for i in range(2,len(xdata)+2,2):
+                xlabels[i/2+1] = xdata.tolist()[i-1]
+            for i in range(len(xlabels)):
+                if type(xlabels[i]) == type(1.0): xlabels[i] = ''
+
+            ax_plot.set_xticklabels(xlabels, family="monospace")
+            xlabels = ax_plot.get_xticklabels()
+            plt.setp(xlabels, rotation=90, fontsize=8)
+
+            ax_plot.xaxis.grid(True, which="minor")
+            ax_plot.yaxis.grid()
+            ax_hist.xaxis.grid(True, which="minor")
+            ax_hist.yaxis.grid()
+            ax_hist.xaxis.set_ticks([])
+
+            ax_plot.set_ylim(var.range)
+            ax_hist.set_ylim(var.range)
+
+            legend = ax_plot.legend(loc='best')
+
+            ax_hist.grid(which='major', color='0.7' , linestyle='--',dashes=(5,1),zorder=0)
+            ax_plot.grid(which='major', color='0.7' , linestyle='--',dashes=(5,1),zorder=0)
+            ax_plot.grid(which='minor', color='0.85', linestyle='--',dashes=(5,1),zorder=0)
+            outdir = os.path.join(outdir,var.name)
+            if not os.path.exists(outdir): os.mkdir(outdir)
+
+            plt.savefig(os.path.join(outdir, '%s_%s_mean.png' % (var.name, region)), format='png',orientation='landscape',
+                        dpi=200,papertype='a4',pad_inches=0.1,
+                        bbox_inches='tight')
+            plt.savefig(os.path.join(outdir, '%s_%s_mean.pdf' % (var.name, region)), format='png',orientation='landscape',
+                        dpi=200,papertype='a4',pad_inches=0.1,
+                        bbox_inches='tight')
 
     def find_FWHM(self, x,y, yerr, xrange, draw=True, label= '', title=''):
         t = np.linspace(xrange[0],xrange[1],1000)
         w = 1.0/yerr
         w[w == np.inf] = 0
         spl   = UnivariateSpline(x, y,w=w)
-        #spl_max   = UnivariateSpline(x, y,w=w,s=len(w)*1.5)
-        #spl_min   = UnivariateSpline(x, y,w=w,s=len(w)*0.5)
         maximum = spl(x)[np.argmax(spl(x))]
         id0     = peakutils.indexes(spl(t), thres=1/max(spl(t)), min_dist=50)
         # find the width

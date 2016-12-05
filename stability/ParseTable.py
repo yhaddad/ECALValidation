@@ -181,7 +181,8 @@ def read_run_range(path = "", file = ""):
     }
     data_ = pd.read_csv(path+'/'+file,
                 sep="\t",
-                names = ["run_number","Nevents","UnixTime"])
+                names = ["run_number","Nevents","UnixTime"],
+                comment='#')
     #Transform the entries
     data_.Nevents = [float(x) for x in data_.Nevents]
     data_[ "UnixTime_min" ] = [ int(x.split('-')[0]) for x in data_.UnixTime ]
