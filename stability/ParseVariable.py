@@ -26,7 +26,7 @@ class variable():
             "title"    : "",
             "bins"     : 100,
             "draw"     : True,
-            "fit"      : True
+            "adjust"   : False
         }
         self.__dict__ = self.__template__
         self.__dict__.update(options)
@@ -243,8 +243,14 @@ class monitor():
         ax_hist.yaxis.grid()
         ax_hist.xaxis.set_ticks([])
 
-        ax_plot.set_ylim(var.range)
-        ax_hist.set_ylim(var.range)
+        if var.adjust==False :
+            # _xmin_ = 0.8 * np.min(self.run_ranges[ '%s_%s_pmin' % (var.name,region)])
+            # _xmax_ = 1.2 * np.max(self.run_ranges[ '%s_%s_pmax' % (var.name,region)])
+            # ax_plot.set_ylim([_xmin_, _xmax_])
+            # ax_hist.set_ylim([_xmin_, _xmax_])
+            # else:
+            ax_plot.set_ylim(var.range)
+            ax_hist.set_ylim(var.range)
 
         legend = ax_plot.legend(loc='best')
 
@@ -311,9 +317,14 @@ class monitor():
             ax_hist.xaxis.grid(True, which="minor")
             ax_hist.yaxis.grid()
             ax_hist.xaxis.set_ticks([])
-
-            ax_plot.set_ylim(var.range)
-            ax_hist.set_ylim(var.range)
+            if var.adjust==False :
+                # _xmin_ = 0.2 * np.min(self.run_ranges[ '%s_%s_mean' % (var.name,region)])
+                # _xmax_ = 1.2 * np.max(self.run_ranges[ '%s_%s_mean' % (var.name,region)])
+                # ax_plot.set_ylim([_xmin_, _xmax_])
+                # ax_hist.set_ylim([_xmin_, _xmax_])
+                # else:
+                ax_plot.set_ylim(var.range)
+                ax_hist.set_ylim(var.range)
 
             legend = ax_plot.legend(loc='best')
 
