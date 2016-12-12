@@ -1,14 +1,16 @@
 {
     "variables": {
-        "nPV": {
-            "range": [0, 50],
-            "bins" : 50,
-            "title": "$N_{pv}$"
+        "e5x5SCEle": {
+            "range" : [25, 525],
+            "bins"  :  50,
+            "title" : "$E_{5\\times 5}$",
+            "adjust": true
         },
-        "invMass_SC_corr": {
-            "range": [50, 110],
-            "bins" : 60,
-            "title": "$m_{ee}^{corr} (GeV)$"
+        "avgLCSCEle":{
+          "range" : [0, 5],
+          "bins"  :  50,
+          "title" : "$LC_{average}$",
+          "adjust": true
         }
     },
     "selection": {
@@ -18,5 +20,33 @@
     "regions": {
         "EB": "abs(etaSCEle[0]) < 1.4442 && abs(etaSCEle[1]) < 1.4442",
         "EE": "abs(etaSCEle[0]) > 1.4442 && abs(etaSCEle[1]) > 1.4442"
+    },
+    "invMass_SC_corr": {
+        "range": [50, 110],
+        "bins": 60,
+        "title": "$m_{ee}^{corr} (GeV)$"
+    },
+    "R9Ele": {
+        "range": [0.8, 1.2],
+        "bins": 50,
+        "title": "$R_{9}$"
+    },
+    "e5x5SCEle": {
+        "range" : [0, 500],
+        "bins"  :  50,
+        "title" : "$E_{5\\times 5}$",
+        "adjust": true
+    },
+    "nPV": {
+        "range": [0, 50],
+        "bins": 50,
+        "title": "$N_{pv}$",
+        "adjust": true
+    },
+    "rho": {
+        "range" : [0, 50],
+        "bins"  : 50,
+        "title" : "$\\rho$",
+        "adjust": true
     }
 }

@@ -1,22 +1,9 @@
-import matplotlib.pyplot as plt
-import pandas     as pd
-import numpy      as np
-import ParseTable as pt
-import ROOT       as r
-from pprint import pprint
-from root_numpy import root2array, tree2array
-from rootpy.io  import root_open
-from collections  import OrderedDict
-from termcolor    import colored
-from jsmin        import jsmin
-import peakutils
-from scipy.interpolate import UnivariateSpline, InterpolatedUnivariateSpline, LSQUnivariateSpline
-from scipy import signal, stats
-import os, sys, json
-from scipy.interpolate import splev, splrep
-from   matplotlib.ticker import NullFormatter
-from   matplotlib.ticker import MultipleLocator, FormatStrFormatter
-import matplotlib.dates as dates
+from __init__ import *
+
+logging.basicConfig(format=colored('%(levelname)s:', attrs=['bold'])
+                    + colored('%(name)s:', 'blue') + ' %(message)s')
+logger = logging.getLogger('MoECAL')
+logger.setLevel(level=logging.INFO)
 
 class variable():
     def __init__(self, name="", options={}):
@@ -49,11 +36,11 @@ class monitor():
         self.columns        = []
         self.data           = {}
         self.run_ranges     = pt.read_run_range(path=os.path.dirname (run_ranges),
-                                                   file=os.path.basename(run_ranges))
+                                                file=os.path.basename(run_ranges))
         self._read_ecal_configuration_(infile=config)
         self.columns = ['eventNumber', 'runNumber', 'lumiBlock'] +  self.variables.keys()
         self.monitor_features = []
-        print colored("------- run-ranges :", "yellow" )
+        print colored("------- run-ranges :", "cyan" , "on_white")
         print self.run_ranges.run_number
 
     def _read_ecal_configuration_(self, infile):
@@ -63,11 +50,11 @@ class monitor():
             _config_ = json.loads(f.read())
         for key in _config_:
             if 'variables' in key.lower():
-                print colored("------- variables :", "yellow" )
+                logger.info(colored("------- variables :", "yellow"))
                 for var in _config_[key]:
                     v = variable(var, _config_[key][var])
                     self.variables[v.name] = v
-                    print v
+                    logger.info(v)
             if "selection" in key.lower():
                 self.ecal_selection = _config_[key]
             if "regions"    in key.lower():
@@ -80,7 +67,7 @@ class monitor():
         """
         _config_ =  pd.read_csv(path + "/" + cfg , sep = "\t", names = ['id', 'tree', 'file'], comment ="#")
         _data_ = { region : None for region in self.ecal_regions}
-        print colored("------- ntuples :", "yellow" )
+        logger.info(colored("------- ntuples :", "yellow"))
         for index, root in _config_.iterrows():
             chain = r.TChain('merged_' + str(index) )
             chain.Add(root.file+'/'+root.tree)
@@ -88,7 +75,7 @@ class monitor():
             for region,cut in self.ecal_regions.items():
                 _cut_ = "&&".join( [cut, self.ecal_selection[selection]] )
                 _df_  = tree2array( chain, selection = _cut_ , branches = self.columns )
-                print colored(" -- ntuple :: %10s -- %10s -- %12i" % ( root.id, region ,_df_.shape[0] ), "green" )
+                logger.info(colored(" -- ntuple :: %10s -- %10s -- %12i" % ( root.id, region ,_df_.shape[0] ), "green" ))
                 if _data_.get(region, None) == None:
                     _data_[region] = _df_
                 else:
@@ -98,7 +85,7 @@ class monitor():
 
 
     def _flatten_data_(self, indata = None):
-        assert indata is not None, colored("[ERROR] the input data seems to be None .... ","red")
+        assert indata is not None, logger.error(colored("[ERROR] the input data seems to be None .... ","yellow","on_red"))
         _data_  = {}
         for region, dd in indata.items():
             df = pd.DataFrame()
@@ -115,30 +102,27 @@ class monitor():
                 else:
                     df[name] = dd[name]
             _data_[region] =  df
-        print colored("------- variables status:", "yellow" )
+        logger.info(colored("------- variables status:", "yellow" ))
         for key, var in self.variables.items() :
-            print var
+            logger.info( var )
         return _data_
 
     def fit(self, draw_fit=True, outdir = './'):
-        if not os.path.exists(outdir): os.mkdir(outdir)
-        print self.data
-        # plt.figure(figsize=(3,3))
+        if not os.path.exists(outdir): os.makedirs(outdir)
         fig = plt.figure(figsize=(5,7))
         for region in self.ecal_regions:
             print colored("------- drawing : %s" % region , "yellow" )
             for v, var in self.variables.items():
-                print '\t', var
+                logger.info('\t' + var.__str__() )
                 if var.draw == False : continue
                 for index, row in self.run_ranges.iterrows():
                     _data_ = self.data[region][np.logical_and(self.data[region].runNumber >= row.run_min,
                                                               self.data[region].runNumber <= row.run_max,
                                                              )]
-                    if not os.path.exists(os.path.join(outdir,v)): os.mkdir(os.path.join(outdir,v))
-                    print colored("\t --  : %15s %2i %3i" % (v, index, _data_.shape[0]) , "green" )
+                    if not os.path.exists(os.path.join(outdir,v,'fits')): os.makedirs(os.path.join(outdir,v,'fits'))
+                    print colored("\t --  : %15s %3i %10i %10s" % (v, index, _data_.shape[0], row.run_number ) , "green" )
 
                     if _data_.shape[0] != 0 :
-                        print var.bins, " ", var.range, " ", var.name
                         y,xbin = np.histogram(_data_[v], bins=var.bins, range=var.range)
                         if y.sum() == 0 :
                             print colored('[warning] :: the variable [%s] is empty !! ' % v, 'red')
@@ -151,8 +135,8 @@ class monitor():
                                                           label='spline-%s-%i-%i-%s'    % (v, row.run_min, row.run_max, region ),
                                                           title='%s run-range = (%i-%i)'% (region, row.run_min, row.run_max))
 
-                        plt.savefig(os.path.join(os.path.join(outdir,v),
-                                     'hist-%s-%i-%i-%s.png' % (v, row.run_min, row.run_max, region) ))
+                        plt.savefig(os.path.join(os.path.join(outdir,v,'fits'),
+                                     'variable-%s-%i-%i-%s.png' % (v, row.run_min, row.run_max, region) ))
                         plt.clf()
                         self.run_ranges.loc[index, '%s_%s_mean' % (v,region)] = _data_[v].mean()
                         self.run_ranges.loc[index, '%s_%s_std'  % (v,region)] = _data_[v].std()
@@ -169,23 +153,13 @@ class monitor():
                         self.run_ranges.loc[index, '%s_%s_peak' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_pmin' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_pmax' % (v,region)] = -999.0
+        print os.path.join(outdir, 'fit_data.tex')
+        fout_ = open(os.path.join(outdir, 'fit_data.tex'), 'w')
+        fout_.write(self.run_ranges.to_latex())
+        fout_.close()
 
-        # for key, var in self.variables.items() :
-        #     self.variables[ '%s_%s_mean' % (key,region) ] = variable(key, self.variables[key].__dict__.copy())
-        #     self.variables[ '%s_%s_mean' % (key,region) ].name = '%s_%s_mean' % (key,region)
-        #
-        #     self.variables[ '%s_%s_std' % (key,region) ] = variable(key, self.variables[key].__dict__.copy())
-        #     self.variables[ '%s_%s_std' % (key,region) ].name = '%s_%s_std' % (key,region)
-        #
-        #     self.variables[ '%s_%s_skew' % (key,region) ] = variable(key, self.variables[key].__dict__.copy())
-        #     self.variables[ '%s_%s_skew' % (key,region) ].name = '%s_%s_skew' % (key,region)
-        #
-        #     self.variables[ '%s_%s_krts' % (key,region) ] = variable(key, self.variables[key].__dict__.copy())
-        #     self.variables[ '%s_%s_krts' % (key,region) ].name = '%s_%s_krts' % (key,region)
-        print self.run_ranges.head
 
     def monitor_peak(self, var=None, region=None, outdir='./plots'):
-
         datavalues = self.run_ranges['%s_%s_peak' % (var.name, region)]
         xdata      = self.run_ranges.run_number
 
@@ -196,7 +170,6 @@ class monitor():
         rect_plot = [left, bottom, width, height]
 
         nullfmt = NullFormatter()
-
         fig = plt.figure(figsize=(12,6))
 
         ax_plot = plt.axes(rect_plot)
@@ -218,6 +191,7 @@ class monitor():
                          capthick=0,marker='.',ms=6,ls='None',zorder=10,)
         err_ = (self.run_ranges[ '%s_%s_pmax' % (var.name,region) ] - self.run_ranges[ '%s_%s_pmin' % (var.name,region) ])
         pos_ = (self.run_ranges[ '%s_%s_pmax' % (var.name,region) ] + self.run_ranges[ '%s_%s_pmin' % (var.name,region) ])/2.0
+
         ax_plot.bar( xbins ,   err_,
                 bottom = pos_ - err_ / 2.0,
                 width  = 2*xerrs ,
@@ -244,11 +218,6 @@ class monitor():
         ax_hist.xaxis.set_ticks([])
 
         if var.adjust==False :
-            # _xmin_ = 0.8 * np.min(self.run_ranges[ '%s_%s_pmin' % (var.name,region)])
-            # _xmax_ = 1.2 * np.max(self.run_ranges[ '%s_%s_pmax' % (var.name,region)])
-            # ax_plot.set_ylim([_xmin_, _xmax_])
-            # ax_hist.set_ylim([_xmin_, _xmax_])
-            # else:
             ax_plot.set_ylim(var.range)
             ax_hist.set_ylim(var.range)
 
@@ -258,7 +227,7 @@ class monitor():
         ax_plot.grid(which='major', color='0.7' , linestyle='--',dashes=(5,1),zorder=0)
         ax_plot.grid(which='minor', color='0.85', linestyle='--',dashes=(5,1),zorder=0)
         outdir = os.path.join(outdir,var.name)
-        if not os.path.exists(outdir): os.mkdir(outdir)
+        if not os.path.exists(outdir): os.makedirs(outdir)
 
         plt.savefig(os.path.join(outdir, '%s_%s_peak.png' % (var.name, region)), format='png',orientation='landscape',
                     dpi=200,papertype='a4',pad_inches=0.1,
@@ -287,16 +256,15 @@ class monitor():
             for k, spine in ax_hist.spines.items():
                 spine.set_zorder(10)
             ax_plot.set_title ( r'monitoring mean: %s %s' % (region, var.name) )
-            print r'$\langle %s \rangle$' % var.title.replace('$','')
             ax_plot.set_ylabel( r'$\langle %s \rangle$' % var.title.replace('$',r'') )
             ax_hist.yaxis.set_major_formatter(nullfmt)
             y,_,_ = ax_hist.hist(datavalues, bins=var.bins,
-                                 orientation='horizontal',
-                                 histtype='stepfilled', alpha=0.6,zorder=10,)
+                                 orientation ='horizontal',
+                                 histtype    ='stepfilled', alpha=0.6,zorder=10,)
             xbins = range(1,1+len(datavalues),1)
             xerrs = 0.5 * np.ones(self.run_ranges.shape[0])
             ax_plot.errorbar(xbins,datavalues,color='blue',xerr = xerrs,
-                             label='peak',yerr=datavalues/np.sqrt(datavalues),
+                             label='peak',yerr=np.std(datavalues)/np.sqrt(datavalues),
                              capthick=0,marker='.',ms=6,ls='None',zorder=10,)
             majorLocator = MultipleLocator(2)
             minorLocator = MultipleLocator(1)
@@ -318,11 +286,6 @@ class monitor():
             ax_hist.yaxis.grid()
             ax_hist.xaxis.set_ticks([])
             if var.adjust==False :
-                # _xmin_ = 0.2 * np.min(self.run_ranges[ '%s_%s_mean' % (var.name,region)])
-                # _xmax_ = 1.2 * np.max(self.run_ranges[ '%s_%s_mean' % (var.name,region)])
-                # ax_plot.set_ylim([_xmin_, _xmax_])
-                # ax_hist.set_ylim([_xmin_, _xmax_])
-                # else:
                 ax_plot.set_ylim(var.range)
                 ax_hist.set_ylim(var.range)
 
@@ -331,8 +294,9 @@ class monitor():
             ax_hist.grid(which='major', color='0.7' , linestyle='--',dashes=(5,1),zorder=0)
             ax_plot.grid(which='major', color='0.7' , linestyle='--',dashes=(5,1),zorder=0)
             ax_plot.grid(which='minor', color='0.85', linestyle='--',dashes=(5,1),zorder=0)
+
             outdir = os.path.join(outdir,var.name)
-            if not os.path.exists(outdir): os.mkdir(outdir)
+            if not os.path.exists(outdir): os.makedirs(outdir)
 
             plt.savefig(os.path.join(outdir, '%s_%s_mean.png' % (var.name, region)), format='png',orientation='landscape',
                         dpi=200,papertype='a4',pad_inches=0.1,
@@ -353,19 +317,15 @@ class monitor():
         roots_   = spline_.roots()
         peak_    = t[np.argmax(spline_(t))]
         peaks_   = spl.roots()
-        print peak_
-        print roots_
-        p0      = [t[p] for p in id0]
-        print p0
-        #fig = plt.figure(figsize=(5,7))
+        p0       = [t[p] for p in id0]
         if draw:
             plt.subplots_adjust(hspace=0)
             ax1 = plt.subplot2grid((4,1), (0,0),rowspan=2)
             ax1.set_ylabel(r"events")
-            print "\t UnivariateSpline : chi2/ndf == ", spl.get_residual()/len(y)
-            print "\t UnivariateSpline : Ncoef    == ", len(spl.get_coeffs())
-            print "\t UnivariateSpline : Nknots   == ", len(spl.get_knots())
-            print "\t UnivariateSpline : smooth   == ", len(w)
+            # logger.debug("\t UnivariateSpline : chi2/ndf == %1.3f " % spl.get_residual()/len(y))
+            # logger.debug("\t UnivariateSpline : Ncoef    == %i " % len(spl.get_coeffs()))
+            # logger.debug("\t UnivariateSpline : Nknots   == %i " % len(spl.get_knots()))
+            # logger.debug("\t UnivariateSpline : smooth   == %i " % len(w))
             ax1.fill_between(t,spl(t)-np.sqrt(spl(t)),spl(t)+np.sqrt(spl(t)),
                              alpha=0.5, edgecolor='#f2ae72', facecolor='#f2ae72')
 
@@ -373,8 +333,6 @@ class monitor():
             ax1.plot(t,spl(t) ,'r-' ,alpha=0.9)
             for p in roots_: ax1.axvline(x=p)
             ax1.axvline(x=peak_,color='red')
-            # ax1.plot(t,spl_1(t) ,'g--' ,alpha=0.9)
-            # ax1.plot(t,spl_2(t) ,'g--' ,alpha=0.9)
             plt.ylim([0,max(y)*1.2])
             ax2 = plt.subplot2grid((4,1), (2,0),sharex=ax1)
             # ----------------------------
@@ -404,12 +362,3 @@ class monitor():
             plt.xlim(xrange)
             plt.show()
         return peak_ , min(roots_), max(roots_), spl.get_residual()/len(y)
-# def run_test():
-#     run_ranges = pt.read_run_range(path='./ntuples/',file='ICHEP_interval_100000.dat')
-#     print run_ranges.head()
-#     raw_data = read_ntuple('./', 'config.dat', 'loose25nsRun2')
-#     print pprint(raw_data)
-#     data = flatten_data(indata = raw_data)
-#     for reg in regions :
-#         print "region :: ", reg
-#         pprint(data[reg].head())
