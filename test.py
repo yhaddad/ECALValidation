@@ -1,11 +1,25 @@
 from stability import ParseVariable as pv
 
-mm = pv.monitor(config='config/basic_ecal_configuration.json')#, run_ranges='./ntuples/ICHEP_interval_100000.dat')
-mm.read_ntuple(path="./", cfg="./config.dat", selection = 'loose25nsRun2')
-mm.fit(outdir='tmp')
-for v, var in mm.variables.items() :
-    for region in mm.ecal_regions :
-        mm.monitor(var, region, outdir='./tmp')
+mm = pv.monitor(
+    config    ='config/basic_ecal_configuration.json', 
+    run_ranges='./monitoring_HighEta_interval.dat', #toring_2017.dat92X_dataRun2_Prompt_v9_interval_10000.dat'
+)
+
+mm.read_ntuple(
+    path      = "./", 
+    cfg       = "monitoring_2017_Z_highEta.dat", 
+    selection = 'simple'
+)
+mm.fit(outdir='92X_dataRun2_Prompt_v11')
+
+data =  mm.run_ranges
+data.to_hdf('data_92X_dataRun2_Prompt_v11.h5', 'monitoring', mode='w', format='table')
+#for v, var in mm.variables.items() :
+#    for region in mm.ecal_regions :
+#	mm.monitor_peak(var, region, outdir='./tmp')
+##	mm.monitor_mean(var, region, outdir='./tmp')
+
+
 
 
 
@@ -53,7 +67,7 @@ def bwias_peak_monitor(xbin, hist, x, spl, label='', args = None):
     plt.ylim([-1.5,1.5])
     ax2.axhline(y=0)
     ax2.axhspan(-0.5,0.5, facecolor='b', alpha=0.2)
-    plt.show()
+    plt.toring_2017_Z_golden_interval_10000.datshow()
     plt.savefig('log-plots/univariate-spline-' + label + '.png')
     plt.savefig('log-plots/univariate-spline-' + label + '.pdf')
 

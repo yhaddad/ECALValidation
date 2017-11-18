@@ -1,0 +1,11 @@
+d1	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV//MINIAODNTUPLE/92X_dataRun2_Prompt_v11/DoubleEG-Run2017A-highEtaSkim-Prompt-v2-miniAOD/296168-296174/DoubleEG/merged.root
+d2	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV//MINIAODNTUPLE/92X_dataRun2_Prompt_v11/DoubleEG-Run2017A-highEtaSkim-Prompt-v3-miniAOD/296880-297004/DoubleEG/merged.root
+d3	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV//MINIAODNTUPLE/92X_dataRun2_Prompt_v11/DoubleEG-Run2017B-highEtaSkim-Prompt-v1-miniAOD/297046-297723/DoubleEG/merged.root
+d4	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV//MINIAODNTUPLE/92X_dataRun2_Prompt_v11/DoubleEG-Run2017B-highEtaSkim-Prompt-v2-miniAOD/298678-299329/DoubleEG/merged.root
+d5	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV//MINIAODNTUPLE/92X_dataRun2_Prompt_v11/DoubleEG-Run2017C-highEtaSkim-Prompt-v1-miniAOD/299368-299649/DoubleEG/merged.root
+d6	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV//MINIAODNTUPLE/92X_dataRun2_Prompt_v11/DoubleEG-Run2017C-highEtaSkim-Prompt-v2-miniAOD/299929-300676/DoubleEG/merged.root
+d7	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV//MINIAODNTUPLE/92X_dataRun2_Prompt_v11/DoubleEG-Run2017C-highEtaSkim-Prompt-v3-miniAOD/300742-301141/DoubleEG/merged.root
+d8	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV//MINIAODNTUPLE/92X_dataRun2_Prompt_v11/DoubleEG-Run2017D-highEtaSkim-Prompt-v1-miniAOD/302030-302526/DoubleEG/merged.root
+d9	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV//MINIAODNTUPLE/92X_dataRun2_Prompt_v11/DoubleEG-Run2017E-highEtaSkim-Prompt-v1-miniAOD/303435-304826/DoubleEG/merged.root
+d10	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV//MINIAODNTUPLE/92X_dataRun2_Prompt_v11/DoubleEG-Run2017F-highEtaSkim-Prompt-v1-miniAOD/305040-305364/DoubleEG/merged.root
+s1	selected	/eos/cms/store/group/dpg_ecal/alca_ecalcalib/ecalelf/ntuples/13TeV/MINIAODNTUPLE/92X_upgrade2017_realistic_v10/DYJets_madgraph-PhaseISpring17-miniAODv2-highEtaSkim/allRange/merged.root

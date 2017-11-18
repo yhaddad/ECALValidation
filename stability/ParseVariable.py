@@ -34,7 +34,8 @@ class monitor():
         self.ecal_selection = {}
         self.ecal_regions   = {}
         self.columns        = []
-        self.data           = {}
+        self.simu           = {}
+	self.data           = {}
         self.run_ranges     = pt.read_run_range(path=os.path.dirname (run_ranges),
                                                 file=os.path.basename(run_ranges))
         self._read_ecal_configuration_(infile=config)
@@ -47,7 +48,7 @@ class monitor():
         assert os.path.exists(infile)==True, colored("[ERROR] configuration file doesn't exist ... ","red")
         _config_ = None
         with open(infile) as f:
-            _config_ = json.loads(f.read())
+            _config_ = json.loads(jsmin(f.read()))
         for key in _config_:
             if 'variables' in key.lower():
                 logger.info(colored("------- variables :", "yellow"))
@@ -67,6 +68,8 @@ class monitor():
         """
         _config_ =  pd.read_csv(path + "/" + cfg , sep = "\t", names = ['id', 'tree', 'file'], comment ="#")
         _data_ = { region : None for region in self.ecal_regions}
+	_simu_ = { region : None for region in self.ecal_regions}
+	
         logger.info(colored("------- ntuples :", "yellow"))
         for index, root in _config_.iterrows():
             chain = r.TChain('merged_' + str(index) )
@@ -76,12 +79,20 @@ class monitor():
                 _cut_ = "&&".join( [cut, self.ecal_selection[selection]] )
                 _df_  = tree2array( chain, selection = _cut_ , branches = self.columns )
                 logger.info(colored(" -- ntuple :: %10s -- %10s -- %12i" % ( root.id, region ,_df_.shape[0] ), "green" ))
-                if _data_.get(region, None) == None:
+                # -- data
+		if _data_.get(region, None) is None and 'd' in root.id:
                     _data_[region] = _df_
                 else:
                     _data_[region] = np.concatenate((_data_[region],  _df_), axis=0)
+		# -- simulation
+		if _simu_.get(region, None) is None and 'd' in root.id:
+                    _simu_[region] = _df_
+                else:
+                    _simu_[region] = np.concatenate((_simu_[region],  _df_), axis=0)
+
         self.data = self._flatten_data_(_data_)
-        return self.data
+	self.simu = self._flatten_data_(_simu_)
+        return self.data, self.simu
 
 
     def _flatten_data_(self, indata = None):
@@ -115,13 +126,42 @@ class monitor():
             for v, var in self.variables.items():
                 logger.info('\t' + var.__str__() )
                 if var.draw == False : continue
+		# fitting the simulation
+		if not os.path.exists(os.path.join(outdir,v,'fits')): os.makedirs(os.path.join(outdir,v,'fits'))
+		if self.simu[region].shape[0] != 0:
+			y,xbin = np.histogram(self.simu[region][v], bins=var.bins, range=var.range)
+			if y.sum() == 0 :
+                            print colored('[warning] :: the variable [%s] is empty !! ' % v, 'red')
+                            var.draw = False
+                            continue
+                        x    = [(xbin[i]+xbin[i+1])/2.0   for i in range(0,len(xbin)-1)]
+                        yerr = np.array([np.sqrt(y[i]) for i in range(0,len(y) )])
+                        yerr[yerr == 0] = np.sqrt(-np.log(0.68))
+                        peak,pmin,pmax,chi2 = self.find_FWHM(x,y,yerr, xrange=var.range, draw=True,
+                                                             label='spline-simu-%s-%s'    % (v, region ),
+                                                             title='simulation %s'% (region))
+
+                        plt.savefig(os.path.join(os.path.join(outdir,v,'fits'),
+                                     'variable-simu-%s-%s.png' % (v, region) ))
+			plt.clf()
+			_simu_fitvar = {}
+			_simu_fitvar['%s_mean' % (region)] = self.simu[region][v].mean()
+			_simu_fitvar['%s_median' % (region)] = np.median(self.simu[region][v])
+			_simu_fitvar['%s_std'  % (region)] = self.simu[region][v].std()/np.sqrt(self.simu[region][v].shape[0])
+			_simu_fitvar['%s_krts' % (region)] = stats.kurtosis(self.simu[region][v])
+			_simu_fitvar['%s_skew' % (region)] = stats.skew(self.simu[region][v])
+			_simu_fitvar['%s_peak' % (region)] = peak #self.simu[region][v].mean()
+			_simu_fitvar['%s_pmin' % (region)] = pmin #self.simu[region][v].mean()
+			_simu_fitvar['%s_pmax' % (region)] = pmax #self.simu[region][v].mean()
+			_simu_fitvar['%s_chi2' % (region)] = chi2 #self.simu[region][v].mean()
+		# fitting data
                 for index, row in self.run_ranges.iterrows():
                     _data_ = self.data[region][np.logical_and(self.data[region].runNumber >= row.run_min,
                                                               self.data[region].runNumber <= row.run_max,
                                                              )]
                     if not os.path.exists(os.path.join(outdir,v,'fits')): os.makedirs(os.path.join(outdir,v,'fits'))
                     print colored("\t --  : %15s %3i %10i %10s" % (v, index, _data_.shape[0], row.run_number ) , "green" )
-
+		    self.run_ranges.loc[index, '%s_%s_ndata' % (v,region)] = _data_.shape[0]
                     if _data_.shape[0] != 0 :
                         y,xbin = np.histogram(_data_[v], bins=var.bins, range=var.range)
                         if y.sum() == 0 :
@@ -131,28 +171,37 @@ class monitor():
                         x    = [(xbin[i]+xbin[i+1])/2.0   for i in range(0,len(xbin)-1)]
                         yerr = np.array([np.sqrt(y[i]) for i in range(0,len(y) )])
                         yerr[yerr == 0] = np.sqrt(-np.log(0.68))
-                        peak,pmin,pmax,_ = self.find_FWHM(x,y,yerr, xrange=var.range, draw=True,
-                                                          label='spline-%s-%i-%i-%s'    % (v, row.run_min, row.run_max, region ),
-                                                          title='%s run-range = (%i-%i)'% (region, row.run_min, row.run_max))
+                        peak,pmin,pmax,chi2 = self.find_FWHM(x,y,yerr, xrange=var.range, draw=True,
+                                                             label='spline-%s-%i-%i-%s'    % (v, row.run_min, row.run_max, region ),
+                                                             title='%s run-range = (%i-%i)'% (region, row.run_min, row.run_max))
 
                         plt.savefig(os.path.join(os.path.join(outdir,v,'fits'),
                                      'variable-%s-%i-%i-%s.png' % (v, row.run_min, row.run_max, region) ))
                         plt.clf()
                         self.run_ranges.loc[index, '%s_%s_mean' % (v,region)] = _data_[v].mean()
-                        self.run_ranges.loc[index, '%s_%s_std'  % (v,region)] = _data_[v].std()
+                        self.run_ranges.loc[index, '%s_%s_median' % (v,region)] = np.median(_data_[v])
+			self.run_ranges.loc[index, '%s_%s_std'  % (v,region)] = _data_[v].std()/np.sqrt( _data_[v].shape[0])
                         self.run_ranges.loc[index, '%s_%s_krts' % (v,region)] = stats.kurtosis(_data_[v])
                         self.run_ranges.loc[index, '%s_%s_skew' % (v,region)] = stats.skew(_data_[v])
                         self.run_ranges.loc[index, '%s_%s_peak' % (v,region)] = peak
                         self.run_ranges.loc[index, '%s_%s_pmin' % (v,region)] = pmin
                         self.run_ranges.loc[index, '%s_%s_pmax' % (v,region)] = pmax
+			self.run_ranges.loc[index, '%s_%s_chi2' % (v,region)] = chi2
+			for r,f in _simu_fitvar.items():
+                                self.run_ranges.loc[index, 'simu_%s_%s' % (v,r)] = f   
                     else:
                         self.run_ranges.loc[index, '%s_%s_mean' % (v,region)] = -999.0
+			self.run_ranges.loc[index, '%s_%s_median' % (v,region)] = -999.0 #np.median(_data_[v])
                         self.run_ranges.loc[index, '%s_%s_std'  % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_krts' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_skew' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_peak' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_pmin' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_pmax' % (v,region)] = -999.0
+			self.run_ranges.loc[index, '%s_%s_chi2' % (v,region)] = -999.0
+			for r,f in _simu_fitvar.items():
+                                self.run_ranges.loc[index, 'simu_%s_%s' % (v,r)] = f
+
         print os.path.join(outdir, 'fit_data.tex')
         fout_ = open(os.path.join(outdir, 'fit_data.tex'), 'w')
         fout_.write(self.run_ranges.to_latex())
@@ -189,7 +238,7 @@ class monitor():
         xerrs = 0.5 * np.ones(self.run_ranges.shape[0])
         ax_plot.errorbar(xbins,datavalues,color='blue',xerr = xerrs,label='peak',
                          capthick=0,marker='.',ms=6,ls='None',zorder=10,)
-        err_ = (self.run_ranges[ '%s_%s_pmax' % (var.name,region) ] - self.run_ranges[ '%s_%s_pmin' % (var.name,region) ])
+        err_ = (self.run_ranges[ '%s_%s_pmax' % (var.name,region) ] - self.run_ranges[ '%s_%s_pmin' % (var.name,region) ])/2.355
         pos_ = (self.run_ranges[ '%s_%s_pmax' % (var.name,region) ] + self.run_ranges[ '%s_%s_pmin' % (var.name,region) ])/2.0
 
         ax_plot.bar( xbins ,   err_,
@@ -305,7 +354,7 @@ class monitor():
                         dpi=200,papertype='a4',pad_inches=0.1,
                         bbox_inches='tight')
 
-    def find_FWHM(self, x,y, yerr, xrange, draw=True, label= '', title=''):
+    def find_FWHM(self, x,y, yerr, xrange, draw=False, label= '', title=''):
         t = np.linspace(xrange[0],xrange[1],1000)
         w = 1.0/yerr
         w[w == np.inf] = 0
@@ -326,7 +375,7 @@ class monitor():
             # logger.debug("\t UnivariateSpline : Ncoef    == %i " % len(spl.get_coeffs()))
             # logger.debug("\t UnivariateSpline : Nknots   == %i " % len(spl.get_knots()))
             # logger.debug("\t UnivariateSpline : smooth   == %i " % len(w))
-            ax1.fill_between(t,spl(t)-np.sqrt(spl(t)),spl(t)+np.sqrt(spl(t)),
+            ax1.fill_between(t,spl(t)-np.sqrt(np.abs(spl(t))),spl(t)+np.sqrt(np.abs(spl(t))),
                              alpha=0.5, edgecolor='#f2ae72', facecolor='#f2ae72')
 
             ax1.errorbar(x,y,yerr=yerr, capthick=0,marker='.', ms=4,ls='None',c='Blue')
@@ -337,8 +386,8 @@ class monitor():
             ax2 = plt.subplot2grid((4,1), (2,0),sharex=ax1)
             # ----------------------------
             residuals = (spl(x)-y)/spl(x)
-            res_min   = -(np.sqrt(spl(t))/spl(t))
-            res_max   = +(np.sqrt(spl(t))/spl(t))
+            res_min   = -(np.sqrt(np.abs(spl(t)))/spl(t))
+            res_max   = +(np.sqrt(np.abs(spl(t)))/spl(t))
             ax2.fill_between(t,res_min,res_max, alpha=0.5, edgecolor='#f2ae72', facecolor='#f2ae72')
 
             ax2.errorbar(x, residuals, yerr=yerr/spl(x),capthick=0,marker='.',
@@ -360,5 +409,5 @@ class monitor():
             ax2.xaxis.set_visible(False)
 
             plt.xlim(xrange)
-            plt.show()
+            #plt.show()
         return peak_ , min(roots_), max(roots_), spl.get_residual()/len(y)
