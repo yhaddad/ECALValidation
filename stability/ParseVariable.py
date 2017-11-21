@@ -35,11 +35,17 @@ class monitor():
         self.ecal_regions   = {}
         self.columns        = []
         self.simu           = {}
-	self.data           = {}
+        self.data           = {}
+        self.puhist_simu    = None
+        self.puhist_data    = None
+        self.pu_weight      = None
         self.run_ranges     = pt.read_run_range(path=os.path.dirname (run_ranges),
                                                 file=os.path.basename(run_ranges))
         self._read_ecal_configuration_(infile=config)
-        self.columns = ['eventNumber', 'runNumber', 'lumiBlock'] +  self.variables.keys()
+        self.columns = ['eventNumber', 'runNumber', 'lumiBlock', 'nPV', 'HLTfire', 'nBX', 'mcGenWeight']
+        for v in  self.variables.keys():
+            if v not in self.columns:
+                self.columns.append(v)
         self.monitor_features = []
         print colored("------- run-ranges :", "cyan" , "on_white")
         print self.run_ranges.run_number
@@ -68,32 +74,60 @@ class monitor():
         """
         _config_ =  pd.read_csv(path + "/" + cfg , sep = "\t", names = ['id', 'tree', 'file'], comment ="#")
         _data_ = { region : None for region in self.ecal_regions}
-	_simu_ = { region : None for region in self.ecal_regions}
-	
+        _simu_ = { region : None for region in self.ecal_regions}
+
         logger.info(colored("------- ntuples :", "yellow"))
         for index, root in _config_.iterrows():
-            chain = r.TChain('merged_' + str(index) )
-            chain.Add(root.file+'/'+root.tree)
-            _df_ = None
-            for region,cut in self.ecal_regions.items():
-                _cut_ = "&&".join( [cut, self.ecal_selection[selection]] )
-                _df_  = tree2array( chain, selection = _cut_ , branches = self.columns )
-                logger.info(colored(" -- ntuple :: %10s -- %10s -- %12i" % ( root.id, region ,_df_.shape[0] ), "green" ))
-                # -- data
-		if _data_.get(region, None) is None and 'd' in root.id:
-                    _data_[region] = _df_
+            if 'pileup' in str(root.tree):
+                fin=r.TFile.Open(root.file)
+                tin=fin.Get(root.tree)
+                if 'd' in root.id and tin is not None:
+                    logger.info(colored(" -- pileup :: %10s -- %10s -- %10s" % ( root.id, root.tree , 'Data'), "yellow" ))
+                    self.puhist_data = hist2array(tin, return_edges=True)
+                elif 's' in root.id:
+                    logger.info(colored(" -- pileup :: %10s -- %10s -- %10s" % ( root.id, root.tree , 'MC'), "yellow" ))
+                    self.puhist_simu = hist2array(tin, return_edges=True)
                 else:
-                    _data_[region] = np.concatenate((_data_[region],  _df_), axis=0)
-		# -- simulation
-		if _simu_.get(region, None) is None and 'd' in root.id:
-                    _simu_[region] = _df_
-                else:
-                    _simu_[region] = np.concatenate((_simu_[region],  _df_), axis=0)
-
+                    assert 'ERROR input id not supported (%s,%s,%is) '% (root.id,root.tree, root.file)
+            else:
+                chain = r.TChain('merged_' + str(index) )
+                chain.Add(root.file+'/'+root.tree)
+                _df_ = None
+                for region,cut in self.ecal_regions.items():
+                    _cut_ = "&&".join( [cut, self.ecal_selection[selection]] )
+                    _df_  = tree2array( chain, selection = _cut_ , branches = self.columns )
+                    logger.info(colored(" -- ntuple :: %10s -- %10s -- %12i" % ( root.id, region ,_df_.shape[0] ), "green" ))
+                    # -- data
+                    if 'd' in root.id and 'pileup' not in root.tree:
+                        if _data_.get(region, None) is None:
+                            _data_[region] = _df_
+                        else:
+                            _data_[region] = np.concatenate((_data_[region],  _df_), axis=0)
+                    # -- simulation
+                    elif 's' in root.id and 'pileup' not in root.tree:
+                        if _simu_.get(region, None) is None:
+                            _simu_[region] = _df_
+                        else:
+                            _simu_[region] = np.concatenate((_simu_[region],  _df_), axis=0)
         self.data = self._flatten_data_(_data_)
-	self.simu = self._flatten_data_(_simu_)
+        self.simu = self._flatten_data_(_simu_)
+
+        _pu_weight_ = self._div_(self.puhist_data[0], self.puhist_simu[0])
+        for region,cut in self.ecal_regions.items():
+            self.simu[region]['pu_weight'] = np.ones(self.simu[region].shape[0])
+            for b, w_ in enumerate(_pu_weight_):
+                if w_ is None:
+                    self.simu[region].loc[(self.simu[region].pu_weight == b), 'pu_weight' ] = 1.0
+                else:
+                    self.simu[region].loc[(self.simu[region].nPV == b), 'pu_weight' ] = w_
         return self.data, self.simu
 
+    def _div_(self, a, b ):
+        """ ignore / 0, div0( [-1, 0, 1], 0 ) -> [0, 0, 0] """
+        with np.errstate(divide='ignore', invalid='ignore'):
+            c = np.true_divide( a, b )
+            c[ ~ np.isfinite( c )] = 0  # -inf inf NaN
+        return c
 
     def _flatten_data_(self, indata = None):
         assert indata is not None, logger.error(colored("[ERROR] the input data seems to be None .... ","yellow","on_red"))
@@ -105,7 +139,6 @@ class monitor():
                 if len(dd[name].shape) > 1 :
                     for i in range(dd[name].shape[1]):
                         df[name + '_' + str(i)] = dd[name][:,i]
-                        pprint(self.variables[name].__dict__)
                         self.variables[name + '_' + str(i) ] = variable(name, self.variables[name].__dict__.copy())
                         self.variables[name + '_' + str(i) ].name = name + '_' + str(i)
                         self.variables[name + '_' + str(i) ].draw = True
@@ -126,42 +159,49 @@ class monitor():
             for v, var in self.variables.items():
                 logger.info('\t' + var.__str__() )
                 if var.draw == False : continue
-		# fitting the simulation
-		if not os.path.exists(os.path.join(outdir,v,'fits')): os.makedirs(os.path.join(outdir,v,'fits'))
-		if self.simu[region].shape[0] != 0:
-			y,xbin = np.histogram(self.simu[region][v], bins=var.bins, range=var.range)
-			if y.sum() == 0 :
-                            print colored('[warning] :: the variable [%s] is empty !! ' % v, 'red')
-                            var.draw = False
-                            continue
-                        x    = [(xbin[i]+xbin[i+1])/2.0   for i in range(0,len(xbin)-1)]
-                        yerr = np.array([np.sqrt(y[i]) for i in range(0,len(y) )])
-                        yerr[yerr == 0] = np.sqrt(-np.log(0.68))
-                        peak,pmin,pmax,chi2 = self.find_FWHM(x,y,yerr, xrange=var.range, draw=True,
-                                                             label='spline-simu-%s-%s'    % (v, region ),
-                                                             title='simulation %s'% (region))
+		        # fitting the simulation
+                if not os.path.exists(os.path.join(outdir,v,'fits')): os.makedirs(os.path.join(outdir,v,'fits'))
 
-                        plt.savefig(os.path.join(os.path.join(outdir,v,'fits'),
-                                     'variable-simu-%s-%s.png' % (v, region) ))
-			plt.clf()
-			_simu_fitvar = {}
-			_simu_fitvar['%s_mean' % (region)] = self.simu[region][v].mean()
-			_simu_fitvar['%s_median' % (region)] = np.median(self.simu[region][v])
-			_simu_fitvar['%s_std'  % (region)] = self.simu[region][v].std()/np.sqrt(self.simu[region][v].shape[0])
-			_simu_fitvar['%s_krts' % (region)] = stats.kurtosis(self.simu[region][v])
-			_simu_fitvar['%s_skew' % (region)] = stats.skew(self.simu[region][v])
-			_simu_fitvar['%s_peak' % (region)] = peak #self.simu[region][v].mean()
-			_simu_fitvar['%s_pmin' % (region)] = pmin #self.simu[region][v].mean()
-			_simu_fitvar['%s_pmax' % (region)] = pmax #self.simu[region][v].mean()
-			_simu_fitvar['%s_chi2' % (region)] = chi2 #self.simu[region][v].mean()
-		# fitting data
+                if self.simu[region].shape[0] != 0:
+                    y,xbin = np.histogram(self.simu[region][v], bins=var.bins,
+                                          weights=self.simu[region].pu_weight*self.simu[region].mcGenWeight,
+                                          range=var.range)
+                    y2,xbin = np.histogram(self.simu[region][v], bins=var.bins,
+                                           weights=(self.simu[region].pu_weight*self.simu[region].mcGenWeight)**2,
+                                           range=var.range)
+                    
+                    if y2.sum() == 0 :
+                        print colored('[warning] :: the variable [%s] is empty !! ' % v, 'red')
+                        var.draw = False
+                        continue
+                    x    = [(xbin[i]+xbin[i+1])/2.0   for i in range(0,len(xbin)-1)]
+                    yerr = np.array([np.sqrt(y2[i]) for i in range(0,len(y) )])
+                    yerr[yerr == 0] = np.sqrt(-np.log(0.68))
+                    peak,pmin,pmax,chi2 = self.find_FWHM(x,y,yerr, xrange=var.range, draw=True,
+                                                         label='spline-simu-%s-%s'    % (v, region ),
+                                                         title='simulation %s'% (region))
+
+                    plt.savefig(os.path.join(os.path.join(outdir,v,'fits'),
+                                             'variable-simu-%s-%s.png' % (v, region) ))
+                    plt.clf()
+                    _simu_fitvar = {}
+                    _simu_fitvar['%s_mean' % (region)] = self.simu[region][v].mean()
+                    _simu_fitvar['%s_median' % (region)] = np.median(self.simu[region][v])
+                    _simu_fitvar['%s_std'  % (region)] = self.simu[region][v].std()/np.sqrt(self.simu[region][v].shape[0])
+                    _simu_fitvar['%s_krts' % (region)] = stats.kurtosis(self.simu[region][v])
+                    _simu_fitvar['%s_skew' % (region)] = stats.skew(self.simu[region][v])
+                    _simu_fitvar['%s_peak' % (region)] = peak #self.simu[region][v].mean()
+                    _simu_fitvar['%s_pmin' % (region)] = pmin #self.simu[region][v].mean()
+                    _simu_fitvar['%s_pmax' % (region)] = pmax #self.simu[region][v].mean()
+                    _simu_fitvar['%s_chi2' % (region)] = chi2 #self.simu[region][v].mean()
+		        # fitting data
                 for index, row in self.run_ranges.iterrows():
                     _data_ = self.data[region][np.logical_and(self.data[region].runNumber >= row.run_min,
                                                               self.data[region].runNumber <= row.run_max,
-                                                             )]
+                    )]
                     if not os.path.exists(os.path.join(outdir,v,'fits')): os.makedirs(os.path.join(outdir,v,'fits'))
                     print colored("\t --  : %15s %3i %10i %10s" % (v, index, _data_.shape[0], row.run_number ) , "green" )
-		    self.run_ranges.loc[index, '%s_%s_ndata' % (v,region)] = _data_.shape[0]
+                    self.run_ranges.loc[index, '%s_%s_ndata' % (v,region)] = _data_.shape[0]
                     if _data_.shape[0] != 0 :
                         y,xbin = np.histogram(_data_[v], bins=var.bins, range=var.range)
                         if y.sum() == 0 :
@@ -176,31 +216,31 @@ class monitor():
                                                              title='%s run-range = (%i-%i)'% (region, row.run_min, row.run_max))
 
                         plt.savefig(os.path.join(os.path.join(outdir,v,'fits'),
-                                     'variable-%s-%i-%i-%s.png' % (v, row.run_min, row.run_max, region) ))
+                                                'variable-%s-%i-%i-%s.png' % (v, row.run_min, row.run_max, region) ))
                         plt.clf()
                         self.run_ranges.loc[index, '%s_%s_mean' % (v,region)] = _data_[v].mean()
                         self.run_ranges.loc[index, '%s_%s_median' % (v,region)] = np.median(_data_[v])
-			self.run_ranges.loc[index, '%s_%s_std'  % (v,region)] = _data_[v].std()/np.sqrt( _data_[v].shape[0])
+                        self.run_ranges.loc[index, '%s_%s_std'  % (v,region)] = _data_[v].std()/np.sqrt( _data_[v].shape[0])
                         self.run_ranges.loc[index, '%s_%s_krts' % (v,region)] = stats.kurtosis(_data_[v])
                         self.run_ranges.loc[index, '%s_%s_skew' % (v,region)] = stats.skew(_data_[v])
                         self.run_ranges.loc[index, '%s_%s_peak' % (v,region)] = peak
                         self.run_ranges.loc[index, '%s_%s_pmin' % (v,region)] = pmin
                         self.run_ranges.loc[index, '%s_%s_pmax' % (v,region)] = pmax
-			self.run_ranges.loc[index, '%s_%s_chi2' % (v,region)] = chi2
-			for r,f in _simu_fitvar.items():
-                                self.run_ranges.loc[index, 'simu_%s_%s' % (v,r)] = f   
+                        self.run_ranges.loc[index, '%s_%s_chi2' % (v,region)] = chi2
+                        for r,f in _simu_fitvar.items():
+                            self.run_ranges.loc[index, 'simu_%s_%s' % (v,r)] = f   
                     else:
                         self.run_ranges.loc[index, '%s_%s_mean' % (v,region)] = -999.0
-			self.run_ranges.loc[index, '%s_%s_median' % (v,region)] = -999.0 #np.median(_data_[v])
+                        self.run_ranges.loc[index, '%s_%s_median' % (v,region)] = -999.0 #np.median(_data_[v])
                         self.run_ranges.loc[index, '%s_%s_std'  % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_krts' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_skew' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_peak' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_pmin' % (v,region)] = -999.0
                         self.run_ranges.loc[index, '%s_%s_pmax' % (v,region)] = -999.0
-			self.run_ranges.loc[index, '%s_%s_chi2' % (v,region)] = -999.0
-			for r,f in _simu_fitvar.items():
-                                self.run_ranges.loc[index, 'simu_%s_%s' % (v,r)] = f
+                        self.run_ranges.loc[index, '%s_%s_chi2' % (v,region)] = -999.0
+                        for r,f in _simu_fitvar.items():
+                            self.run_ranges.loc[index, 'simu_%s_%s' % (v,r)] = f
 
         print os.path.join(outdir, 'fit_data.tex')
         fout_ = open(os.path.join(outdir, 'fit_data.tex'), 'w')

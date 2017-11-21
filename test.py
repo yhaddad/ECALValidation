@@ -1,27 +1,36 @@
 from stability import ParseVariable as pv
 
 mm = pv.monitor(
-    config    ='config/basic_ecal_configuration.json', 
-    run_ranges='./monitoring_HighEta_interval.dat', #toring_2017.dat92X_dataRun2_Prompt_v9_interval_10000.dat'
+    config='config/basic_ecal_configuration.json',
+    run_ranges='./monitoring_HighEta_interval.dat',
 )
 
 mm.read_ntuple(
-    path      = "./", 
-    cfg       = "monitoring_2017_Z_highEta.dat", 
-    selection = 'simple'
+    path="./",
+    cfg="monitoring_2017_Z_highEta.dat",
+    selection='simple'
 )
+
+# print dir(mm)
+# print type(mm.data)
+
+data = mm.run_ranges
+# for i, c in mm.data.items():
+#     print i
+#     c.to_hdf('raw_data_92X_%s.h5' % i,  'monitoring', mode='w', format='table')
+
+# for i, c in mm.simu.items():
+#     print i
+#     c.to_hdf('raw_simu_92X_%s.h5' % i,  'monitoring', mode='w', format='table')
+
 mm.fit(outdir='92X_dataRun2_Prompt_v11')
+data.to_hdf('data_92X_dataRun2_Prompt_v11.h5',
+            'monitoring', mode='w', format='table')
 
-data =  mm.run_ranges
-data.to_hdf('data_92X_dataRun2_Prompt_v11.h5', 'monitoring', mode='w', format='table')
-#for v, var in mm.variables.items() :
-#    for region in mm.ecal_regions :
-#	mm.monitor_peak(var, region, outdir='./tmp')
-##	mm.monitor_mean(var, region, outdir='./tmp')
-
-
-
-
+for v, var in mm.variables.items():
+    for region in mm.ecal_regions:
+       mm.monitor_peak(var, region, outdir='./tmp')
+       mm.monitor_mean(var, region, outdir='./tmp') 
 
 """
 def bwias_peak_monitor(xbin, hist, x, spl, label='', args = None):

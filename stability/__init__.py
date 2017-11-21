@@ -11,7 +11,7 @@ import ROOT       as r
 import matplotlib.dates as dates
 
 from pprint       import pprint
-from root_numpy   import root2array, tree2array
+from root_numpy   import root2array, tree2array, hist2array
 from rootpy.io    import root_open
 from collections  import OrderedDict
 from termcolor    import colored

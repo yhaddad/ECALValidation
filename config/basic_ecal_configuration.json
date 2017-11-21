@@ -1,39 +1,40 @@
 {
     "variables": {
         "nPV": {
-        	"range": [0, 70],
-        	"bins": 70,
-        	"title": "N_{pv}",
-        	"adjust": true
-    	},
-	"invMass_5x5SC":{
-		"range" : [50,150],
-		"bins"  : 100,
-		"title" : "Mee",
-		"adjust": true
-	},
-	"invMass_highEta":{
-                "range" : [50,150],
-                "bins"  : 100,
-                "title" : "Mee",
-                "adjust": true
+        	  "range": [0, 70],
+        	  "bins": 70,
+        	  "title": "N_{pv}",
+        	  "adjust": true
+    	  },
+	      "invMass_5x5SC":{
+		        "range" : [50,150],
+		        "bins"  : 100,
+		        "title" : "Mee",
+		        "adjust": true
+	      },
+	      "invMass_highEta":{
+            "range" : [50,150],
+            "bins"  : 100,
+            "title" : "Mee",
+            "adjust": true
         },
-	"R9Ele": {
-        	"range": [0.8, 1.2],
-       		"bins": 50,
-       		"title": "R_9"
-	}
+	      "R9Ele": {
+        	  "range": [0.8, 1.2],
+       		  "bins": 50,
+       		  "title": "R_9"
+	      }
 
     },
     "selection": {
         "loose25nsRun2": "(((eleID[0] & 131072)==131072)&&((eleID[1] & 131072)==131072))&&((energy_ECAL_ele[0]/cosh(etaSCEle[0]) >= 25)&&(energy_ECAL_ele[1]/cosh(etaSCEle[1]) >= 25))",
         "loose"  : "(((eleID[0] & 128)==128)&&((eleID[1] & 128)==128))&&((energy_ECAL_ele[0]/cosh(etaSCEle[0]) >= 25)&&(energy_ECAL_ele[1]/cosh(etaSCEle[1]) >= 25))",
-	"simple" : "(abs(etaSCEle[1])>2.5)*(((eleID[0] & 131072)==131072) && (energy_ECAL_ele[0]/cosh(etaSCEle[0]) >= 25 ) && (energy_ECAL_ele[1]/cosh(etaSCEle[1]) >= 20 )) + (abs(etaSCEle[1])<2.5)*((((eleID[0] & 131072)==131072)&&((eleID[1] & 131072)==131072))&&((energy_ECAL_ele[0]/cosh(etaSCEle[0]) >= 25)&&(energy_ECAL_ele[1]/cosh(etaSCEle[1]) >= 25)))"
+	      "simple" : "(abs(etaSCEle[1])>2.5)*(((eleID[0] & 131072)==131072) && (energy_ECAL_ele[0]/cosh(etaSCEle[0]) >= 25 ) && (energy_ECAL_ele[1]/cosh(etaSCEle[1]) >= 20 )) + (abs(etaSCEle[1])<2.5)*((((eleID[0] & 131072)==131072)&&((eleID[1] & 131072)==131072))&&((energy_ECAL_ele[0]/cosh(etaSCEle[0]) >= 25)&&(energy_ECAL_ele[1]/cosh(etaSCEle[1]) >= 25)))"
     },
     "regions": {
-        //"EB": "abs(etaSCEle[0]) < 1.4442 && abs(etaSCEle[1]) < 1.4442",
-        "EE": "abs(etaSCEle[0]) > 1.4442 && abs(etaSCEle[1]) > 1.4442",
-	"HighEta" : "abs(etaSCEle[0])< 1.4442 && abs(etaSCEle[1])>2.5"
+        "Inclusive": "1",
+        "EB"       : "abs(etaSCEle[0]) < 1.4442 && abs(etaSCEle[1]) < 1.4442",
+        "EE"       : "abs(etaSCEle[0]) > 1.4442 && abs(etaSCEle[1]) > 1.4442",
+	      "HighEta"  : "abs(etaSCEle[0]) < 1.4442 && abs(etaSCEle[1]) > 2.5"
     },
     "invMass_SC_corr": {
         "range": [50, 110],
